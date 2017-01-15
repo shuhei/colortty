@@ -1,17 +1,17 @@
 use std::num::ParseIntError;
 
 // http://jadpole.github.io/rust/many-error-types
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ColorError {
     InvalidFormat,
     ParseInt(ParseIntError),
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Color {
-    red: u8,
-    green: u8,
-    blue: u8,
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
 }
 
 impl Color {
@@ -96,8 +96,7 @@ impl ColorScheme {
     }
 
     pub fn to_yaml(&self) -> String {
-        format!("
-colors:
+        format!("colors:
   # Default colors
   primary:
     foreground: '{}'
