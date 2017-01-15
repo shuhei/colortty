@@ -4,6 +4,12 @@ colortty converts terminal emulator color schemes. It currently supports the fol
 
 - [mintty](https://github.com/mintty/mintty) -> [alacritty](https://github.com/jwilm/alacritty)
 
+## Usage
+
+```sh
+cat some-color.minttyrc | colortty
+```
+
 ## Development
 
 Build:
@@ -12,8 +18,8 @@ Build:
 cargo build
 ```
 
-Run:
+Test:
 
 ```sh
-cat some-color.minttyrc | cargo run
+cargo test
 ```
