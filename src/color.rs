@@ -1,4 +1,7 @@
+extern crate xml;
+
 use std::num::ParseIntError;
+use self::xml::{Element, Xml};
 
 // http://jadpole.github.io/rust/many-error-types
 #[derive(Debug, PartialEq)]
@@ -33,6 +36,14 @@ impl Color {
 
     pub fn to_hex(&self) -> String {
         format!("0x{:>02x}{:>02x}{:>02x}", self.red, self.green, self.blue)
+    }
+}
+
+fn extract_text(element: &Element) -> &str {
+    let first = &element.children[0];
+    match first {
+        &Xml::CharacterNode(ref text) => text,
+        _ => panic!("Not an chracter node: {}", first),
     }
 }
 
@@ -95,37 +106,89 @@ impl ColorScheme {
         scheme
     }
 
+    pub fn from_iterm2(content: String) -> Self {
+        let mut scheme = ColorScheme::default();
+
+        let root: Element = content.parse().unwrap();
+        let root_dict: &Element = &root.get_children("dict", None).nth(0).unwrap();
+
+        let keys = root_dict.get_children("key", None);
+        let values = root_dict.get_children("dict", None);
+        for (key, value) in keys.zip(values) {
+            let color_name = extract_text(key);
+            let color_keys = value.get_children("key", None);
+            let color_values = value.get_children("real", None);
+
+            let mut color = Color::default();
+            for (color_key, color_value) in color_keys.zip(color_values) {
+                let component_name = extract_text(color_key);
+                let real_value: f32 = extract_text(color_value).parse().unwrap();
+                let int_value = (real_value * 255.0) as u8;
+                match component_name {
+                    "Red Component"   => color.red   = int_value,
+                    "Green Component" => color.green = int_value,
+                    "Blue Component"  => color.blue  = int_value,
+                    _                 => panic!("Invalid color component name: {}", component_name),
+                };
+            }
+
+            match color_name {
+                "Ansi 0 Color"     => scheme.black          = color,
+                "Ansi 1 Color"     => scheme.red            = color,
+                "Ansi 2 Color"     => scheme.green          = color,
+                "Ansi 3 Color"     => scheme.yellow         = color,
+                "Ansi 4 Color"     => scheme.blue           = color,
+                "Ansi 5 Color"     => scheme.magenta        = color,
+                "Ansi 6 Color"     => scheme.cyan           = color,
+                "Ansi 7 Color"     => scheme.white          = color,
+                "Ansi 8 Color"     => scheme.bright_black   = color,
+                "Ansi 9 Color"     => scheme.bright_red     = color,
+                "Ansi 10 Color"    => scheme.bright_green   = color,
+                "Ansi 11 Color"    => scheme.bright_yellow  = color,
+                "Ansi 12 Color"    => scheme.bright_blue    = color,
+                "Ansi 13 Color"    => scheme.bright_magenta = color,
+                "Ansi 14 Color"    => scheme.bright_cyan    = color,
+                "Ansi 15 Color"    => scheme.bright_white   = color,
+                "Background Color" => scheme.background     = color,
+                "Foreground Color" => scheme.foreground     = color,
+                _                  => (),
+            }
+        }
+
+        scheme
+    }
+
     pub fn to_yaml(&self) -> String {
         format!("colors:
   # Default colors
   primary:
-    foreground: '{}'
     background: '{}'
+    foreground: '{}'
 
   # Normal colors
   normal:
-    black:      '{}'
-    red:        '{}'
-    green:      '{}'
-    yellow:     '{}'
-    blue:       '{}'
-    magenta:    '{}'
-    cyan:       '{}'
-    white:      '{}'
+    black:   '{}'
+    red:     '{}'
+    green:   '{}'
+    yellow:  '{}'
+    blue:    '{}'
+    magenta: '{}'
+    cyan:    '{}'
+    white:   '{}'
 
   # Bright colors
   bright:
-    black:      '{}'
-    red:        '{}'
-    green:      '{}'
-    yellow:     '{}'
-    blue:       '{}'
-    magenta:    '{}'
-    cyan:       '{}'
-    white:      '{}'
+    black:   '{}'
+    red:     '{}'
+    green:   '{}'
+    yellow:  '{}'
+    blue:    '{}'
+    magenta: '{}'
+    cyan:    '{}'
+    white:   '{}'
 ",
-            self.foreground.to_hex(),
             self.background.to_hex(),
+            self.foreground.to_hex(),
             self.black.to_hex(),
             self.red.to_hex(),
             self.green.to_hex(),
