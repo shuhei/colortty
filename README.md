@@ -8,9 +8,14 @@ colortty converts terminal emulator color schemes. It currently supports the fol
 ## Usage
 
 ```sh
-cat some-color.minttyrc | colortty -i mintty
-# or
-cat some-color.itermcolors | colortty -i iterm2
+colortty some-color.itermcolors
+colortty some-color.minttyrc
+
+colortty -i iterm some-color-theme
+colortty -i mintty some-color-theme
+
+cat some-color-theme | colortty -i iterm -
+cat some-color-theme | colortty -i mintty -
 ```
 
 ## Development

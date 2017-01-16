@@ -106,7 +106,7 @@ impl ColorScheme {
         scheme
     }
 
-    pub fn from_iterm2(content: String) -> Self {
+    pub fn from_iterm(content: String) -> Self {
         let mut scheme = ColorScheme::default();
 
         let root: Element = content.parse().unwrap();
