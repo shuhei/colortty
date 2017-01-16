@@ -3,6 +3,31 @@ extern crate xml;
 use std::num::ParseIntError;
 use self::xml::{Element, Xml};
 
+pub enum ColorSchemeFormat {
+    ITerm,
+    Mintty,
+}
+
+impl ColorSchemeFormat {
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "iterm" => Some(ColorSchemeFormat::ITerm),
+            "mintty" => Some(ColorSchemeFormat::Mintty),
+            _        => None,
+        }
+    }
+
+    pub fn from_filename(s: &str) -> Option<Self> {
+        if s.contains(".itermcolors") {
+            return Some(ColorSchemeFormat::ITerm);
+        } else if s.contains(".minttyrc") {
+            return Some(ColorSchemeFormat::Mintty);
+        } else {
+            return None;
+        }
+    }
+}
+
 // http://jadpole.github.io/rust/many-error-types
 #[derive(Debug, PartialEq)]
 pub enum ColorError {
@@ -72,7 +97,7 @@ pub struct ColorScheme {
 }
 
 impl ColorScheme {
-    pub fn from_minttyrc(content: String) -> Self {
+    pub fn from_minttyrc(content: &str) -> Self {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
             let components: Vec<&str> = line.split("=").collect();
@@ -106,7 +131,7 @@ impl ColorScheme {
         scheme
     }
 
-    pub fn from_iterm(content: String) -> Self {
+    pub fn from_iterm(content: &str) -> Self {
         let mut scheme = ColorScheme::default();
 
         let root: Element = content.parse().unwrap();

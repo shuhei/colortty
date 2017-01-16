@@ -5,32 +5,7 @@ use std::env;
 use std::io::{self, Read};
 use std::fs::File;
 use getopts::Options;
-use colortty::color::{ColorScheme};
-
-enum ColorSchemeFormat {
-    ITerm,
-    Mintty,
-}
-
-impl ColorSchemeFormat {
-    fn from_string(s: &str) -> Option<Self> {
-        match s {
-            "iterm" => Some(ColorSchemeFormat::ITerm),
-            "mintty" => Some(ColorSchemeFormat::Mintty),
-            _        => None,
-        }
-    }
-
-    fn from_filename(s: &str) -> Option<Self> {
-        if s.contains(".itermcolors") {
-            return Some(ColorSchemeFormat::ITerm);
-        } else if s.contains(".minttyrc") {
-            return Some(ColorSchemeFormat::Mintty);
-        } else {
-            return None;
-        }
-    }
-}
+use colortty::color::{ColorScheme, ColorSchemeFormat};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -65,8 +40,8 @@ fn main() {
     }
 
     let scheme = match input_format {
-        ColorSchemeFormat::ITerm => ColorScheme::from_iterm(buffer),
-        ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(buffer),
+        ColorSchemeFormat::ITerm => ColorScheme::from_iterm(&buffer),
+        ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
     };
 
     print!("{}", scheme.to_yaml());

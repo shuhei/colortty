@@ -37,28 +37,22 @@ mod color_tests {
 
     mod color_scheme {
         use colortty::color::{ColorScheme};
+        use std::io::{Read};
+        use std::fs::File;
+
+        fn read_fixture(filename: &str) -> String {
+            let mut fixture= String::new();
+            File::open(filename)
+                .unwrap()
+                .read_to_string(&mut fixture)
+                .unwrap();
+            return fixture;
+        }
 
         #[test]
-        fn convert_dracula() {
-            let dracula_minttyrc = "ForegroundColour=248,248,242
-BackgroundColour=40,42,54
-Black=0,0,0
-BoldBlack=40,42,53
-Red=255,85,85
-BoldRed=255,110,103
-Green=80,250,123
-BoldGreen=90,247,142
-Yellow=241,250,140
-BoldYellow=244,249,157
-Blue=202,169,250
-BoldBlue=202,169,250
-Magenta=255,121,198
-BoldMagenta=255,146,208
-Cyan=139,233,253
-BoldCyan=154,237,254
-White=191,191,191
-BoldWhite=230,230,230".to_string();
-            let dracula_alacritty = "colors:
+        fn convert_minttyrc() {
+            let dracula_minttyrc = read_fixture("tests/fixtures/Dracula.minttyrc");
+            let dracula_alacritty: String = "colors:
   # Default colors
   primary:
     background: '0x282a36'
@@ -85,8 +79,43 @@ BoldWhite=230,230,230".to_string();
     magenta: '0xff92d0'
     cyan:    '0x9aedfe'
     white:   '0xe6e6e6'
-";
-            let scheme = ColorScheme::from_minttyrc(dracula_minttyrc);
+".to_string();
+            let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc);
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
+        }
+
+        #[test]
+        fn convert_iterm() {
+            let dracula_iterm = read_fixture("tests/fixtures/Dracula.itermcolors");
+            let dracula_alacritty: String = "colors:
+  # Default colors
+  primary:
+    background: '0x1e1f28'
+    foreground: '0xf8f8f2'
+
+  # Normal colors
+  normal:
+    black:   '0x000000'
+    red:     '0xff5555'
+    green:   '0x50fa7b'
+    yellow:  '0xf1fa8c'
+    blue:    '0xbd93f9'
+    magenta: '0xff79c6'
+    cyan:    '0x8be9fd'
+    white:   '0xbbbbbb'
+
+  # Bright colors
+  bright:
+    black:   '0x555555'
+    red:     '0xff5555'
+    green:   '0x50fa7b'
+    yellow:  '0xf1fa8c'
+    blue:    '0xbd93f9'
+    magenta: '0xff79c6'
+    cyan:    '0x8be9fd'
+    white:   '0xffffff'
+".to_string();
+            let scheme = ColorScheme::from_iterm(&dracula_iterm);
             assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
     }
