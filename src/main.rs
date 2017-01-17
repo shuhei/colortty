@@ -53,27 +53,40 @@ fn convert(args: Vec<String>) {
     print!("{}", scheme.to_yaml());
 }
 
-fn list() {
+fn http_get(url: &str) -> String {
     let ssl = OpensslClient::new().unwrap();
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
-    // TODO: Get only necessary fields.
-    let schemes_url = "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
 
-    let mut res = client.get(schemes_url)
+    let mut res = client.get(url)
         .header(UserAgent("colortty".to_string()))
         .send()
         .unwrap();
-    let mut json = String::new();
+    let mut buffer = String::new();
     // TODO: Check status code.
-    res.read_to_string(&mut json).unwrap();
-    let parsed = json::parse(&json).unwrap();
-    for item in parsed.members() {
+    res.read_to_string(&mut buffer).unwrap();
+    return buffer;
+}
+
+fn list() {
+    // TODO: Get only necessary fields.
+    let schemes_url = "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
+    let buffer = http_get(schemes_url);
+    let items = json::parse(&buffer).unwrap();
+    for item in items.members() {
         let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
         println!("{}", name);
     }
 }
 
+fn get(args: Vec<String>) {
+    let name = &args[2];
+    let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
+    let body = http_get(&url);
+
+    let scheme = ColorScheme::from_iterm(&body);
+    print!("{}", scheme.to_yaml());
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -81,6 +94,7 @@ fn main() {
     match args[1].as_ref() {
         "convert" => convert(args),
         "list"    => list(),
+        "get"     => get(args),
         _         => panic!(format!("{}", args[1])),
     }
 }

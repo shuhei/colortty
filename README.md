@@ -20,10 +20,16 @@ cat some-color-theme | colortty convert -i iterm -
 cat some-color-theme | colortty convert -i mintty -
 ```
 
-List color schemes:
+List color schemes at [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes):
 
 ```sh
 colortty list
+```
+
+Get color scheme from [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) in Alacritty format:
+
+```sh
+colortty get {color scheme name}
 ```
 
 ## Development
