@@ -68,10 +68,9 @@ fn list() {
     // TODO: Check status code.
     res.read_to_string(&mut json).unwrap();
     let parsed = json::parse(&json).unwrap();
-    println!("{} items", parsed.len());
     for item in parsed.members() {
-        // TODO: Remove the extension, .itermcolors.
-        println!("{}", item["name"]);
+        let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
+        println!("{}", name);
     }
 }
 
