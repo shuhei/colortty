@@ -7,15 +7,23 @@ colortty converts terminal emulator color schemes. It currently supports the fol
 
 ## Usage
 
+Convert:
+
 ```sh
-colortty some-color.itermcolors
-colortty some-color.minttyrc
+colortty convert some-color.itermcolors
+colortty convert some-color.minttyrc
 
-colortty -i iterm some-color-theme
-colortty -i mintty some-color-theme
+colortty convert -i iterm some-color-theme
+colortty convert -i mintty some-color-theme
 
-cat some-color-theme | colortty -i iterm -
-cat some-color-theme | colortty -i mintty -
+cat some-color-theme | colortty convert -i iterm -
+cat some-color-theme | colortty convert -i mintty -
+```
+
+List color schemes:
+
+```sh
+colortty list
 ```
 
 ## Development

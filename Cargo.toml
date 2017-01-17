@@ -6,3 +6,6 @@ authors = ["Shuhei Kagawa <shuhei.kagawa@gmail.com>"]
 [dependencies]
 getopts = "*"
 RustyXML = "*"
+hyper = "*"
+hyper-openssl = "*"
+json = "*"

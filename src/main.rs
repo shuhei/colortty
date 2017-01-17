@@ -1,18 +1,24 @@
 extern crate getopts;
+extern crate hyper;
+extern crate hyper_openssl;
 extern crate colortty;
+#[macro_use]
+extern crate json;
 
 use std::env;
 use std::io::{self, Read};
 use std::fs::File;
 use getopts::Options;
+use hyper::client::Client;
+use hyper::net::HttpsConnector;
+use hyper::header::{UserAgent};
+use hyper_openssl::OpensslClient;
 use colortty::color::{ColorScheme, ColorSchemeFormat};
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
+fn convert(args: Vec<String>) {
     let mut opts = Options::new();
     opts.optopt("i", "input-format", "input format: 'iterm'|'mintty'", "INPUT_FORMAT");
-    let matches = match opts.parse(&args[1..]) {
+    let matches = match opts.parse(&args[2..]) {
         Ok(m)  => m,
         Err(f) => panic!(f.to_string()),
     };
@@ -45,4 +51,37 @@ fn main() {
     };
 
     print!("{}", scheme.to_yaml());
+}
+
+fn list() {
+    let ssl = OpensslClient::new().unwrap();
+    let connector = HttpsConnector::new(ssl);
+    let client = Client::with_connector(connector);
+    // TODO: Get only necessary fields.
+    let schemes_url = "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
+
+    let mut res = client.get(schemes_url)
+        .header(UserAgent("colortty".to_string()))
+        .send()
+        .unwrap();
+    let mut json = String::new();
+    // TODO: Check status code.
+    res.read_to_string(&mut json).unwrap();
+    let parsed = json::parse(&json).unwrap();
+    println!("{} items", parsed.len());
+    for item in parsed.members() {
+        // TODO: Remove the extension, .itermcolors.
+        println!("{}", item["name"]);
+    }
+}
+
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    match args[1].as_ref() {
+        "convert" => convert(args),
+        "list"    => list(),
+        _         => panic!(format!("{}", args[1])),
+    }
 }
