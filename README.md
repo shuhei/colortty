@@ -34,6 +34,12 @@ colortty get <color scheme name>
 
 ## Development
 
+Install:
+
+```sh
+cargo install --path .
+```
+
 Build:
 
 ```sh
