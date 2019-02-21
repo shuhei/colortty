@@ -29,7 +29,7 @@ colortty list
 Get color scheme from [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) in Alacritty format:
 
 ```sh
-colortty get {color scheme name}
+colortty get <color scheme name>
 ```
 
 ## Development
