@@ -2,7 +2,6 @@ extern crate getopts;
 extern crate hyper;
 extern crate hyper_openssl;
 extern crate colortty;
-#[macro_use]
 extern crate json;
 
 use std::env;
