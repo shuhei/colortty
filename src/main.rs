@@ -7,6 +7,7 @@ extern crate json;
 use std::env;
 use std::io::{self, Read};
 use std::fs::File;
+use std::process;
 use getopts::Options;
 use hyper::client::Client;
 use hyper::net::HttpsConnector;
@@ -87,13 +88,45 @@ fn get(args: Vec<String>) {
     print!("{}", scheme.to_yaml());
 }
 
+fn help() {
+    println!("colortty - color scheme converter for alacritty
+
+USAGE:
+    # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
+    colortty list
+
+    # Get color scheme from https://github.com/mbadolato/iTerm2-Color-Schemes
+    colortty get <color scheme name>
+
+    # Convert with implicit input type
+    colortty convert some-color.itermcolors
+    colortty convert some-color.minttyrc
+
+    # Convert with explicit input type
+    colortty convert -i iterm some-color-theme
+    colortty convert -i mintty some-color-theme
+
+    # Convert stdin (explicit input type is necessary)
+    cat some-color-theme | colortty convert -i iterm -
+    cat some-color-theme | colortty convert -i mintty -");
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        help();
+        return;
+    }
 
     match args[1].as_ref() {
         "convert" => convert(args),
         "list"    => list(),
         "get"     => get(args),
-        _         => panic!(format!("{}", args[1])),
+        "help"    => help(),
+        _         => {
+            eprintln!("error: no such subcommand: `{}`", args[1]);
+            process::exit(1);
+        }
     }
 }

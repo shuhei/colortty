@@ -97,6 +97,7 @@ pub struct ColorScheme {
 }
 
 impl ColorScheme {
+    // TODO: Return Result.
     pub fn from_minttyrc(content: &str) -> Self {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
@@ -131,6 +132,7 @@ impl ColorScheme {
         scheme
     }
 
+    // TODO: Return Result.
     pub fn from_iterm(content: &str) -> Self {
         let mut scheme = ColorScheme::default();
 
