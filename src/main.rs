@@ -29,8 +29,8 @@ fn convert(args: Vec<String>) {
 
     let source = &matches.free[0];
     let input_format = matches.opt_str("i")
-        .and_then(|s| ColorSchemeFormat::from_string(s.as_ref()))
-        .or_else(|| ColorSchemeFormat::from_filename(source.as_ref()))
+        .and_then(|s| ColorSchemeFormat::from_string(&s))
+        .or_else(|| ColorSchemeFormat::from_filename(&source))
         .expect("Input format not specified and failed to guess");
 
     let mut buffer = String::new();
