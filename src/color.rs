@@ -165,6 +165,10 @@ impl ColorScheme {
                     "Red Component"   => color.red   = int_value,
                     "Green Component" => color.green = int_value,
                     "Blue Component"  => color.blue  = int_value,
+                    // TODO: Support "Alpha Component" if necessary
+                    "Alpha Component" => {},
+                    // TODO: Support "Color Space" if necessary
+                    "Color Space"     => {},
                     _                 => {
                         return Err(ColorError::InvalidColorComponent(component_name.to_owned()));
                     },
