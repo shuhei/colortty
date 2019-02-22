@@ -1,7 +1,7 @@
 extern crate xml;
 
-use std::num::ParseIntError;
-use self::xml::{Element, Xml};
+use std::num::{ParseIntError, ParseFloatError};
+use self::xml::{BuilderError, Element, Xml};
 
 pub enum ColorSchemeFormat {
     ITerm,
@@ -31,8 +31,15 @@ impl ColorSchemeFormat {
 // http://jadpole.github.io/rust/many-error-types
 #[derive(Debug, PartialEq)]
 pub enum ColorError {
-    InvalidFormat,
+    InvalidColorFormat(String),
+    InvalidLineFormat(String),
+    InvalidColorComponent(String),
+    InvalidColorName(String),
+    XMLParse(BuilderError),
+    NoRootDict,
+    NotCharaceterNode(Xml),
     ParseInt(ParseIntError),
+    ParseFloat(ParseFloatError),
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -46,7 +53,7 @@ impl Color {
     pub fn from_string(s: &str) -> Result<Self, ColorError> {
         let rgb: Vec<_> = s.split(",").collect();
         if rgb.len() != 3 {
-            return Err(ColorError::InvalidFormat);
+            return Err(ColorError::InvalidColorFormat(s.to_owned()));
         }
         let red = Color::parse_int(rgb[0])?;
         let green = Color::parse_int(rgb[1])?;
@@ -64,11 +71,11 @@ impl Color {
     }
 }
 
-fn extract_text(element: &Element) -> &str {
+fn extract_text(element: &Element) -> Result<&str, ColorError> {
     let first = &element.children[0];
     match first {
-        &Xml::CharacterNode(ref text) => text,
-        _ => panic!("Not an chracter node: {}", first),
+        &Xml::CharacterNode(ref text) => Ok(text),
+        _ => Err(ColorError::NotCharaceterNode(first.to_owned())),
     }
 }
 
@@ -97,16 +104,15 @@ pub struct ColorScheme {
 }
 
 impl ColorScheme {
-    // TODO: Return Result.
-    pub fn from_minttyrc(content: &str) -> Self {
+    pub fn from_minttyrc(content: &str) -> Result<Self, ColorError> {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
             let components: Vec<&str> = line.split("=").collect();
             if components.len() != 2 {
-                panic!("Invalid line: {}", line);
+                return Err(ColorError::InvalidLineFormat(line.to_owned()));
             }
             let name = components[0];
-            let color = Color::from_string(components[1]).unwrap();
+            let color = Color::from_string(components[1])?;
             match name {
                 "ForegroundColour" => scheme.foreground     = color,
                 "BackgroundColour" => scheme.background     = color,
@@ -126,36 +132,42 @@ impl ColorScheme {
                 "BoldMagenta"      => scheme.bright_magenta = color,
                 "BoldCyan"         => scheme.bright_cyan    = color,
                 "BoldWhite"        => scheme.bright_white   = color,
-                _                  => panic!("Invalid color name: {}", name),
+                _                  => {
+                    return Err(ColorError::InvalidColorName(name.to_owned()));
+                },
             }
         }
-        scheme
+        Ok(scheme)
     }
 
-    // TODO: Return Result.
-    pub fn from_iterm(content: &str) -> Self {
+    pub fn from_iterm(content: &str) -> Result<Self, ColorError> {
         let mut scheme = ColorScheme::default();
 
-        let root: Element = content.parse().unwrap();
-        let root_dict: &Element = &root.get_children("dict", None).nth(0).unwrap();
+        let root: Element = content.parse()
+            .or_else(|e| Err(ColorError::XMLParse(e)))?;
+        let root_dict: &Element = root.get_children("dict", None).nth(0)
+            .ok_or(ColorError::NoRootDict)?;
 
         let keys = root_dict.get_children("key", None);
         let values = root_dict.get_children("dict", None);
         for (key, value) in keys.zip(values) {
-            let color_name = extract_text(key);
+            let color_name = extract_text(key)?;
             let color_keys = value.get_children("key", None);
             let color_values = value.get_children("real", None);
 
             let mut color = Color::default();
             for (color_key, color_value) in color_keys.zip(color_values) {
-                let component_name = extract_text(color_key);
-                let real_value: f32 = extract_text(color_value).parse().unwrap();
+                let component_name = extract_text(color_key)?;
+                let real_value: f32 = extract_text(color_value)?.parse()
+                    .or_else(|e| Err(ColorError::ParseFloat(e)))?;
                 let int_value = (real_value * 255.0) as u8;
                 match component_name {
                     "Red Component"   => color.red   = int_value,
                     "Green Component" => color.green = int_value,
                     "Blue Component"  => color.blue  = int_value,
-                    _                 => panic!("Invalid color component name: {}", component_name),
+                    _                 => {
+                        return Err(ColorError::InvalidColorComponent(component_name.to_owned()));
+                    },
                 };
             }
 
@@ -182,7 +194,7 @@ impl ColorScheme {
             }
         }
 
-        scheme
+        Ok(scheme)
     }
 
     pub fn to_yaml(&self) -> String {

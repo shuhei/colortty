@@ -17,7 +17,7 @@ mod color_tests {
         fn from_string_invalid_format() {
             assert_eq!(
                 Color::from_string("123"),
-                Err(ColorError::InvalidFormat)
+                Err(ColorError::InvalidColorFormat("123".to_owned()))
             );
         }
 
@@ -81,7 +81,7 @@ mod color_tests {
     white:   '0xe6e6e6'
 ".to_string();
             let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc);
-            assert_eq!(scheme.to_yaml(), dracula_alacritty);
+            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
         }
 
         #[test]
@@ -116,7 +116,7 @@ mod color_tests {
     white:   '0xffffff'
 ".to_string();
             let scheme = ColorScheme::from_iterm(&dracula_iterm);
-            assert_eq!(scheme.to_yaml(), dracula_alacritty);
+            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
         }
     }
 }

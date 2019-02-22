@@ -45,12 +45,18 @@ fn convert(args: Vec<String>) {
             .expect("Failed to read source");
     }
 
-    let scheme = match input_format {
+    let scheme_result = match input_format {
         ColorSchemeFormat::ITerm => ColorScheme::from_iterm(&buffer),
         ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
     };
 
-    print!("{}", scheme.to_yaml());
+    match scheme_result {
+        Ok(schema) => println!("{}", schema.to_yaml()),
+        Err(e) => {
+            eprintln!("error: {:?}", e);
+            process::exit(1);
+        }
+    }
 }
 
 fn http_get(url: &str) -> String {
@@ -84,8 +90,10 @@ fn get(args: Vec<String>) {
     let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
     let body = http_get(&url);
 
-    let scheme = ColorScheme::from_iterm(&body);
-    print!("{}", scheme.to_yaml());
+    match ColorScheme::from_iterm(&body) {
+        Ok(scheme) => print!("{}", scheme.to_yaml()),
+        Err(e) => panic!(format!("{:?}", e)),
+    }
 }
 
 fn help() {
