@@ -3,7 +3,7 @@ extern crate colortty;
 #[cfg(test)]
 mod color_tests {
     mod color {
-        use colortty::color::{Color, ColorError};
+        use colortty::color::Color;
 
         #[test]
         fn from_string_works() {
@@ -15,10 +15,7 @@ mod color_tests {
 
         #[test]
         fn from_string_invalid_format() {
-            assert_eq!(
-                Color::from_string("123"),
-                Err(ColorError::InvalidColorFormat("123".to_owned()))
-            );
+            assert!(Color::from_string("123").is_err());
         }
 
         #[test]
@@ -80,8 +77,8 @@ mod color_tests {
     cyan:    '0x9aedfe'
     white:   '0xe6e6e6'
 ".to_string();
-            let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc);
-            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
+            let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc).unwrap();
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
 
         #[test]
@@ -115,8 +112,8 @@ mod color_tests {
     cyan:    '0x8be9fd'
     white:   '0xffffff'
 ".to_string();
-            let scheme = ColorScheme::from_iterm(&dracula_iterm);
-            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
+            let scheme = ColorScheme::from_iterm(&dracula_iterm).unwrap();
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
     }
 }

@@ -13,7 +13,7 @@ use hyper::client::Client;
 use hyper::net::HttpsConnector;
 use hyper::header::{UserAgent};
 use hyper_openssl::OpensslClient;
-use colortty::color::{ColorScheme, ColorSchemeFormat};
+use colortty::*;
 
 fn convert(args: Vec<String>) {
     let mut opts = Options::new();
