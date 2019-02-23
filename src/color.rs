@@ -66,20 +66,20 @@ impl Color {
         if rgb.len() != 3 {
             return Err(ColorError::InvalidColorFormat(s.to_owned()));
         }
-        let red = Color::parse_int(rgb[0])?;
-        let green = Color::parse_int(rgb[1])?;
-        let blue = Color::parse_int(rgb[2])?;
+        let red = parse_int(rgb[0])?;
+        let green = parse_int(rgb[1])?;
+        let blue = parse_int(rgb[2])?;
         let color = Color { red: red, green: green, blue: blue };
         Ok(color)
-    }
-
-    fn parse_int(s: &str) -> Result<u8, ColorError> {
-        s.parse().or_else(|e| Err(ColorError::ParseInt(e)))
     }
 
     pub fn to_hex(&self) -> String {
         format!("0x{:>02x}{:>02x}{:>02x}", self.red, self.green, self.blue)
     }
+}
+
+fn parse_int(s: &str) -> Result<u8, ColorError> {
+    s.parse().or_else(|e| Err(ColorError::ParseInt(e)))
 }
 
 fn extract_text(element: &Element) -> Result<&str, ColorError> {
@@ -144,7 +144,7 @@ impl ColorScheme {
                 "BoldCyan"         => scheme.bright_cyan    = color,
                 "BoldWhite"        => scheme.bright_white   = color,
                 _                  => {
-                    return Err(ColorError::InvalidColorName(name.to_owned()));
+                    return Err(ColorError::UnknownColorName(name.to_owned()));
                 },
             }
         }
@@ -179,7 +179,7 @@ impl ColorScheme {
                     "Alpha Component" => {},
                     "Color Space"     => {},
                     _                 => {
-                        return Err(ColorError::InvalidColorComponent(component_name.to_owned()));
+                        return Err(ColorError::UnknownColorComponent(component_name.to_owned()));
                     },
                 };
             }
