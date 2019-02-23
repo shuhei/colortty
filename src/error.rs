@@ -8,6 +8,13 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug, Fail, PartialEq)]
 pub enum ErrorKind {
+    // -- CLI errors
+    #[fail(display="failed on HTTP GET")]
+    HttpGet,
+
+    #[fail(display="failed to parse JSON")]
+    ParseJson,
+
     // -- Mintty errors
 
     #[fail(display="invalid color representation: {}", _0)]
