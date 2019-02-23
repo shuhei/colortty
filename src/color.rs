@@ -11,7 +11,7 @@ pub enum ColorSchemeFormat {
 impl ColorSchemeFormat {
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
-            "iterm" => Some(ColorSchemeFormat::ITerm),
+            "iterm"  => Some(ColorSchemeFormat::ITerm),
             "mintty" => Some(ColorSchemeFormat::Mintty),
             _        => None,
         }
@@ -31,14 +31,24 @@ impl ColorSchemeFormat {
 // http://jadpole.github.io/rust/many-error-types
 #[derive(Debug, PartialEq)]
 pub enum ColorError {
+    // Invalid color representation in mintty format
     InvalidColorFormat(String),
+    // Invalid line format in mintty format
     InvalidLineFormat(String),
-    InvalidColorComponent(String),
-    InvalidColorName(String),
-    XMLParse(BuilderError),
-    NoRootDict,
-    NotCharaceterNode(Xml),
+    // Unkonwn color name in mintty format
+    UnknownColorName(String),
+    // Invalid int in mintty format
     ParseInt(ParseIntError),
+
+    // Invalid XML syntax in iterm format
+    XMLParse(BuilderError),
+    // Invalid XML schema in iterm format
+    NoRootDict,
+    // Invalid character node in iterm format
+    NotCharacterNode(Xml),
+    // Unknown color component in iterm format
+    UnknownColorComponent(String),
+    // Invalid float in iterm format
     ParseFloat(ParseFloatError),
 }
 
@@ -50,6 +60,7 @@ pub struct Color {
 }
 
 impl Color {
+    // TODO: Move this out because it's only for mintty format.
     pub fn from_string(s: &str) -> Result<Self, ColorError> {
         let rgb: Vec<_> = s.split(",").collect();
         if rgb.len() != 3 {
@@ -75,7 +86,7 @@ fn extract_text(element: &Element) -> Result<&str, ColorError> {
     let first = &element.children[0];
     match first {
         &Xml::CharacterNode(ref text) => Ok(text),
-        _ => Err(ColorError::NotCharaceterNode(first.to_owned())),
+        _ => Err(ColorError::NotCharacterNode(first.to_owned())),
     }
 }
 
@@ -165,9 +176,7 @@ impl ColorScheme {
                     "Red Component"   => color.red   = int_value,
                     "Green Component" => color.green = int_value,
                     "Blue Component"  => color.blue  = int_value,
-                    // TODO: Support "Alpha Component" if necessary
                     "Alpha Component" => {},
-                    // TODO: Support "Color Space" if necessary
                     "Color Space"     => {},
                     _                 => {
                         return Err(ColorError::InvalidColorComponent(component_name.to_owned()));
