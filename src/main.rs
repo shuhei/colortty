@@ -1,48 +1,55 @@
+extern crate colortty;
+extern crate failure;
 extern crate getopts;
 extern crate hyper;
 extern crate hyper_openssl;
-extern crate colortty;
 extern crate json;
 
-use std::env;
-use std::io::{self, Read};
-use std::fs::File;
-use std::process;
+use colortty::*;
+use failure::ResultExt;
 use getopts::Options;
 use hyper::client::Client;
+use hyper::header::UserAgent;
 use hyper::net::HttpsConnector;
-use hyper::header::{UserAgent};
 use hyper_openssl::OpensslClient;
-use colortty::color::{ColorScheme, ColorSchemeFormat};
+use std::env;
+use std::fs::File;
+use std::io::{self, Read};
+use std::process;
 
-fn convert(args: Vec<String>) {
+fn convert(args: Vec<String>) -> ::Result<()> {
     let mut opts = Options::new();
-    opts.optopt("i", "input-format", "input format: 'iterm'|'mintty'", "INPUT_FORMAT");
-    let matches = match opts.parse(&args[2..]) {
-        Ok(m)  => m,
-        Err(f) => panic!(f.to_string()),
-    };
+    opts.optopt(
+        "i",
+        "input-format",
+        "input format: 'iterm'|'mintty'",
+        "INPUT_FORMAT",
+    );
+    let matches = opts
+        .parse(&args[2..])
+        .context(::ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
-        panic!("Specify source");
+        Err(::ErrorKind::MissingSource)?;
     }
 
     let source = &matches.free[0];
-    let input_format = matches.opt_str("i")
+    let input_format = matches
+        .opt_str("i")
         .and_then(|s| ColorSchemeFormat::from_string(&s))
         .or_else(|| ColorSchemeFormat::from_filename(&source))
-        .expect("Input format not specified and failed to guess");
+        .ok_or(::ErrorKind::MissingInputFormat)?;
 
     let mut buffer = String::new();
     if source == "-" {
         io::stdin()
             .read_to_string(&mut buffer)
-            .expect("Failed to get stdin");
+            .context(::ErrorKind::ReadStdin)?;
     } else {
         File::open(source)
             .unwrap()
             .read_to_string(&mut buffer)
-            .expect("Failed to read source");
+            .context(::ErrorKind::ReadSource)?;
     }
 
     let scheme_result = match input_format {
@@ -50,54 +57,50 @@ fn convert(args: Vec<String>) {
         ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
     };
 
-    match scheme_result {
-        Ok(schema) => println!("{}", schema.to_yaml()),
-        Err(e) => {
-            eprintln!("error: {:?}", e);
-            process::exit(1);
-        }
-    }
+    scheme_result.map(|schema| println!("{}", schema.to_yaml()))
 }
 
-fn http_get(url: &str) -> String {
-    let ssl = OpensslClient::new().unwrap();
+fn http_get(url: &str) -> ::Result<String> {
+    let ssl = OpensslClient::new().context(::ErrorKind::HttpGet)?;
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
 
-    let mut res = client.get(url)
+    let mut res = client
+        .get(url)
         .header(UserAgent("colortty".to_string()))
         .send()
-        .unwrap();
+        .context(::ErrorKind::HttpGet)?;
     let mut buffer = String::new();
     // TODO: Check status code.
-    res.read_to_string(&mut buffer).unwrap();
-    return buffer;
+    res.read_to_string(&mut buffer)
+        .context(::ErrorKind::HttpGet)?;
+    Ok(buffer)
 }
 
-fn list() {
+fn list() -> ::Result<()> {
     // TODO: Get only necessary fields.
-    let schemes_url = "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
-    let buffer = http_get(schemes_url);
-    let items = json::parse(&buffer).unwrap();
+    let schemes_url =
+        "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
+    let buffer = http_get(schemes_url)?;
+    let items = json::parse(&buffer).context(::ErrorKind::ParseJson)?;
     for item in items.members() {
         let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
         println!("{}", name);
     }
+    Ok(())
 }
 
-fn get(args: Vec<String>) {
+fn get(args: Vec<String>) -> ::Result<()> {
     let name = &args[2];
     let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
-    let body = http_get(&url);
+    let body = http_get(&url)?;
 
-    match ColorScheme::from_iterm(&body) {
-        Ok(scheme) => print!("{}", scheme.to_yaml()),
-        Err(e) => panic!(format!("{:?}", e)),
-    }
+    ColorScheme::from_iterm(&body).map(|scheme| print!("{}", scheme.to_yaml()))
 }
 
-fn help() {
-    println!("colortty - color scheme converter for alacritty
+fn help() -> Result<()> {
+    println!(
+        "colortty - color scheme converter for alacritty
 
 USAGE:
     # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
@@ -116,25 +119,35 @@ USAGE:
 
     # Convert stdin (explicit input type is necessary)
     cat some-color-theme | colortty convert -i iterm -
-    cat some-color-theme | colortty convert -i mintty -");
+    cat some-color-theme | colortty convert -i mintty -"
+    );
+
+    Ok(())
 }
 
-fn main() {
+fn main() -> ::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        help();
-        return;
+        return help();
     }
 
-    match args[1].as_ref() {
+    let result = match args[1].as_ref() {
         "convert" => convert(args),
-        "list"    => list(),
-        "get"     => get(args),
-        "help"    => help(),
-        _         => {
+        "list" => list(),
+        "get" => get(args),
+        "help" => help(),
+        _ => {
             eprintln!("error: no such subcommand: `{}`", args[1]);
             process::exit(1);
         }
+    };
+    match result {
+        Err(e) => {
+            eprintln!("error: {}", e);
+            process::exit(1);
+        }
+        _ => {}
     }
+    Ok(())
 }

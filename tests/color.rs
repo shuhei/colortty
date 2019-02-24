@@ -3,22 +3,23 @@ extern crate colortty;
 #[cfg(test)]
 mod color_tests {
     mod color {
-        use colortty::color::{Color, ColorError};
+        use colortty::color::Color;
 
         #[test]
         fn from_string_works() {
             assert_eq!(
                 Color::from_string("12,3,255").unwrap(),
-                Color { red: 12, green: 3, blue: 255 }
+                Color {
+                    red: 12,
+                    green: 3,
+                    blue: 255
+                }
             );
         }
 
         #[test]
         fn from_string_invalid_format() {
-            assert_eq!(
-                Color::from_string("123"),
-                Err(ColorError::InvalidColorFormat("123".to_owned()))
-            );
+            assert!(Color::from_string("123").is_err());
         }
 
         #[test]
@@ -29,19 +30,24 @@ mod color_tests {
         #[test]
         fn to_hex() {
             assert_eq!(
-                Color { red: 123, green: 4, blue: 255 }.to_hex(),
+                Color {
+                    red: 123,
+                    green: 4,
+                    blue: 255
+                }
+                .to_hex(),
                 "0x7b04ff"
             );
         }
     }
 
     mod color_scheme {
-        use colortty::color::{ColorScheme};
-        use std::io::{Read};
+        use colortty::color::ColorScheme;
         use std::fs::File;
+        use std::io::Read;
 
         fn read_fixture(filename: &str) -> String {
-            let mut fixture= String::new();
+            let mut fixture = String::new();
             File::open(filename)
                 .unwrap()
                 .read_to_string(&mut fixture)
@@ -79,9 +85,10 @@ mod color_tests {
     magenta: '0xff92d0'
     cyan:    '0x9aedfe'
     white:   '0xe6e6e6'
-".to_string();
-            let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc);
-            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
+"
+            .to_string();
+            let scheme = ColorScheme::from_minttyrc(&dracula_minttyrc).unwrap();
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
 
         #[test]
@@ -114,9 +121,10 @@ mod color_tests {
     magenta: '0xff79c6'
     cyan:    '0x8be9fd'
     white:   '0xffffff'
-".to_string();
-            let scheme = ColorScheme::from_iterm(&dracula_iterm);
-            assert_eq!(scheme.map(|s| s.to_yaml()), Ok(dracula_alacritty));
+"
+            .to_string();
+            let scheme = ColorScheme::from_iterm(&dracula_iterm).unwrap();
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
     }
 }

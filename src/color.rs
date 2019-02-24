@@ -1,7 +1,5 @@
-extern crate xml;
-
-use std::num::{ParseIntError, ParseFloatError};
-use self::xml::{BuilderError, Element, Xml};
+use failure::ResultExt;
+use xml::{Element, Xml};
 
 pub enum ColorSchemeFormat {
     ITerm,
@@ -13,7 +11,7 @@ impl ColorSchemeFormat {
         match s {
             "iterm" => Some(ColorSchemeFormat::ITerm),
             "mintty" => Some(ColorSchemeFormat::Mintty),
-            _        => None,
+            _ => None,
         }
     }
 
@@ -28,20 +26,6 @@ impl ColorSchemeFormat {
     }
 }
 
-// http://jadpole.github.io/rust/many-error-types
-#[derive(Debug, PartialEq)]
-pub enum ColorError {
-    InvalidColorFormat(String),
-    InvalidLineFormat(String),
-    InvalidColorComponent(String),
-    InvalidColorName(String),
-    XMLParse(BuilderError),
-    NoRootDict,
-    NotCharaceterNode(Xml),
-    ParseInt(ParseIntError),
-    ParseFloat(ParseFloatError),
-}
-
 #[derive(Debug, Default, PartialEq)]
 pub struct Color {
     pub red: u8,
@@ -50,20 +34,21 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn from_string(s: &str) -> Result<Self, ColorError> {
+    // TODO: Move this out because it's only for mintty format.
+    pub fn from_string(s: &str) -> ::Result<Self> {
         let rgb: Vec<_> = s.split(",").collect();
         if rgb.len() != 3 {
-            return Err(ColorError::InvalidColorFormat(s.to_owned()));
+            Err(::ErrorKind::InvalidColorFormat(s.to_owned()))?;
         }
-        let red = Color::parse_int(rgb[0])?;
-        let green = Color::parse_int(rgb[1])?;
-        let blue = Color::parse_int(rgb[2])?;
-        let color = Color { red: red, green: green, blue: blue };
+        let red = parse_int(rgb[0])?;
+        let green = parse_int(rgb[1])?;
+        let blue = parse_int(rgb[2])?;
+        let color = Color {
+            red: red,
+            green: green,
+            blue: blue,
+        };
         Ok(color)
-    }
-
-    fn parse_int(s: &str) -> Result<u8, ColorError> {
-        s.parse().or_else(|e| Err(ColorError::ParseInt(e)))
     }
 
     pub fn to_hex(&self) -> String {
@@ -71,11 +56,15 @@ impl Color {
     }
 }
 
-fn extract_text(element: &Element) -> Result<&str, ColorError> {
+fn parse_int(s: &str) -> ::Result<u8> {
+    Ok(s.parse::<u8>().context(::ErrorKind::ParseInt)?)
+}
+
+fn extract_text(element: &Element) -> ::Result<&str> {
     let first = &element.children[0];
     match first {
         &Xml::CharacterNode(ref text) => Ok(text),
-        _ => Err(ColorError::NotCharaceterNode(first.to_owned())),
+        _ => Err(::ErrorKind::NotCharacterNode(first.to_owned()))?,
     }
 }
 
@@ -104,49 +93,48 @@ pub struct ColorScheme {
 }
 
 impl ColorScheme {
-    pub fn from_minttyrc(content: &str) -> Result<Self, ColorError> {
+    pub fn from_minttyrc(content: &str) -> ::Result<Self> {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
             let components: Vec<&str> = line.split("=").collect();
             if components.len() != 2 {
-                return Err(ColorError::InvalidLineFormat(line.to_owned()));
+                Err(::ErrorKind::InvalidLineFormat(line.to_owned()))?;
             }
             let name = components[0];
             let color = Color::from_string(components[1])?;
             match name {
-                "ForegroundColour" => scheme.foreground     = color,
-                "BackgroundColour" => scheme.background     = color,
-                "Black"            => scheme.black          = color,
-                "Red"              => scheme.red            = color,
-                "Green"            => scheme.green          = color,
-                "Yellow"           => scheme.yellow         = color,
-                "Blue"             => scheme.blue           = color,
-                "Magenta"          => scheme.magenta        = color,
-                "Cyan"             => scheme.cyan           = color,
-                "White"            => scheme.white          = color,
-                "BoldRed"          => scheme.bright_red     = color,
-                "BoldBlack"        => scheme.bright_black   = color,
-                "BoldGreen"        => scheme.bright_green   = color,
-                "BoldYellow"       => scheme.bright_yellow  = color,
-                "BoldBlue"         => scheme.bright_blue    = color,
-                "BoldMagenta"      => scheme.bright_magenta = color,
-                "BoldCyan"         => scheme.bright_cyan    = color,
-                "BoldWhite"        => scheme.bright_white   = color,
-                _                  => {
-                    return Err(ColorError::InvalidColorName(name.to_owned()));
-                },
+                "ForegroundColour" => scheme.foreground = color,
+                "BackgroundColour" => scheme.background = color,
+                "Black" => scheme.black = color,
+                "Red" => scheme.red = color,
+                "Green" => scheme.green = color,
+                "Yellow" => scheme.yellow = color,
+                "Blue" => scheme.blue = color,
+                "Magenta" => scheme.magenta = color,
+                "Cyan" => scheme.cyan = color,
+                "White" => scheme.white = color,
+                "BoldRed" => scheme.bright_red = color,
+                "BoldBlack" => scheme.bright_black = color,
+                "BoldGreen" => scheme.bright_green = color,
+                "BoldYellow" => scheme.bright_yellow = color,
+                "BoldBlue" => scheme.bright_blue = color,
+                "BoldMagenta" => scheme.bright_magenta = color,
+                "BoldCyan" => scheme.bright_cyan = color,
+                "BoldWhite" => scheme.bright_white = color,
+                _ => Err(::ErrorKind::UnknownColorName(name.to_owned()))?,
             }
         }
         Ok(scheme)
     }
 
-    pub fn from_iterm(content: &str) -> Result<Self, ColorError> {
+    pub fn from_iterm(content: &str) -> ::Result<Self> {
         let mut scheme = ColorScheme::default();
 
-        let root: Element = content.parse()
-            .or_else(|e| Err(ColorError::XMLParse(e)))?;
-        let root_dict: &Element = root.get_children("dict", None).nth(0)
-            .ok_or(ColorError::NoRootDict)?;
+        let root = content.parse::<Element>().context(::ErrorKind::XMLParse)?;
+        let root_dict: &Element = root
+            .get_children("dict", None)
+            .nth(0)
+            .ok_or(::ErrorKind::NoRootDict)?;
 
         let keys = root_dict.get_children("key", None);
         let values = root_dict.get_children("dict", None);
@@ -158,43 +146,44 @@ impl ColorScheme {
             let mut color = Color::default();
             for (color_key, color_value) in color_keys.zip(color_values) {
                 let component_name = extract_text(color_key)?;
-                let real_value: f32 = extract_text(color_value)?.parse()
-                    .or_else(|e| Err(ColorError::ParseFloat(e)))?;
+                let real_value: f32 = extract_text(color_value)?
+                    .parse::<f32>()
+                    .context(::ErrorKind::ParseFloat)?;
                 let int_value = (real_value * 255.0) as u8;
                 match component_name {
-                    "Red Component"   => color.red   = int_value,
+                    "Red Component" => color.red = int_value,
                     "Green Component" => color.green = int_value,
-                    "Blue Component"  => color.blue  = int_value,
-                    // TODO: Support "Alpha Component" if necessary
-                    "Alpha Component" => {},
-                    // TODO: Support "Color Space" if necessary
-                    "Color Space"     => {},
-                    _                 => {
-                        return Err(ColorError::InvalidColorComponent(component_name.to_owned()));
-                    },
+                    "Blue Component" => color.blue = int_value,
+                    "Alpha Component" => {}
+                    "Color Space" => {}
+                    _ => {
+                        Err(::ErrorKind::UnknownColorComponent(
+                            component_name.to_owned(),
+                        ))?;
+                    }
                 };
             }
 
             match color_name {
-                "Ansi 0 Color"     => scheme.black          = color,
-                "Ansi 1 Color"     => scheme.red            = color,
-                "Ansi 2 Color"     => scheme.green          = color,
-                "Ansi 3 Color"     => scheme.yellow         = color,
-                "Ansi 4 Color"     => scheme.blue           = color,
-                "Ansi 5 Color"     => scheme.magenta        = color,
-                "Ansi 6 Color"     => scheme.cyan           = color,
-                "Ansi 7 Color"     => scheme.white          = color,
-                "Ansi 8 Color"     => scheme.bright_black   = color,
-                "Ansi 9 Color"     => scheme.bright_red     = color,
-                "Ansi 10 Color"    => scheme.bright_green   = color,
-                "Ansi 11 Color"    => scheme.bright_yellow  = color,
-                "Ansi 12 Color"    => scheme.bright_blue    = color,
-                "Ansi 13 Color"    => scheme.bright_magenta = color,
-                "Ansi 14 Color"    => scheme.bright_cyan    = color,
-                "Ansi 15 Color"    => scheme.bright_white   = color,
-                "Background Color" => scheme.background     = color,
-                "Foreground Color" => scheme.foreground     = color,
-                _                  => (),
+                "Ansi 0 Color" => scheme.black = color,
+                "Ansi 1 Color" => scheme.red = color,
+                "Ansi 2 Color" => scheme.green = color,
+                "Ansi 3 Color" => scheme.yellow = color,
+                "Ansi 4 Color" => scheme.blue = color,
+                "Ansi 5 Color" => scheme.magenta = color,
+                "Ansi 6 Color" => scheme.cyan = color,
+                "Ansi 7 Color" => scheme.white = color,
+                "Ansi 8 Color" => scheme.bright_black = color,
+                "Ansi 9 Color" => scheme.bright_red = color,
+                "Ansi 10 Color" => scheme.bright_green = color,
+                "Ansi 11 Color" => scheme.bright_yellow = color,
+                "Ansi 12 Color" => scheme.bright_blue = color,
+                "Ansi 13 Color" => scheme.bright_magenta = color,
+                "Ansi 14 Color" => scheme.bright_cyan = color,
+                "Ansi 15 Color" => scheme.bright_white = color,
+                "Background Color" => scheme.background = color,
+                "Foreground Color" => scheme.foreground = color,
+                _ => (),
             }
         }
 
@@ -202,7 +191,8 @@ impl ColorScheme {
     }
 
     pub fn to_yaml(&self) -> String {
-        format!("colors:
+        format!(
+            "colors:
   # Default colors
   primary:
     background: '{}'
