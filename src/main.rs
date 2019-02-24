@@ -140,8 +140,7 @@ fn main() -> ::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        help();
-        return Ok(());
+        return help();
     }
 
     let result = match args[1].as_ref() {
