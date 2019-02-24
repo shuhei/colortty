@@ -25,13 +25,12 @@ fn convert(args: Vec<String>) -> ::Result<()> {
         "input format: 'iterm'|'mintty'",
         "INPUT_FORMAT",
     );
-    let matches = match opts.parse(&args[2..]) {
-        Ok(m) => m,
-        Err(f) => panic!(f.to_string()),
-    };
+    let matches = opts
+        .parse(&args[2..])
+        .context(::ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
-        panic!("Specify source");
+        Err(::ErrorKind::MissingSource)?;
     }
 
     let source = &matches.free[0];
@@ -39,18 +38,18 @@ fn convert(args: Vec<String>) -> ::Result<()> {
         .opt_str("i")
         .and_then(|s| ColorSchemeFormat::from_string(&s))
         .or_else(|| ColorSchemeFormat::from_filename(&source))
-        .expect("Input format not specified and failed to guess");
+        .ok_or(::ErrorKind::MissingInputFormat)?;
 
     let mut buffer = String::new();
     if source == "-" {
         io::stdin()
             .read_to_string(&mut buffer)
-            .expect("Failed to get stdin");
+            .context(::ErrorKind::ReadStdin)?;
     } else {
         File::open(source)
             .unwrap()
             .read_to_string(&mut buffer)
-            .expect("Failed to read source");
+            .context(::ErrorKind::ReadSource)?;
     }
 
     let scheme_result = match input_format {
@@ -58,14 +57,7 @@ fn convert(args: Vec<String>) -> ::Result<()> {
         ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
     };
 
-    match scheme_result {
-        Ok(schema) => println!("{}", schema.to_yaml()),
-        Err(e) => {
-            eprintln!("error: {}", e);
-            process::exit(1);
-        }
-    }
-    Ok(())
+    scheme_result.map(|schema| println!("{}", schema.to_yaml()))
 }
 
 fn http_get(url: &str) -> ::Result<String> {
@@ -80,7 +72,8 @@ fn http_get(url: &str) -> ::Result<String> {
         .context(::ErrorKind::HttpGet)?;
     let mut buffer = String::new();
     // TODO: Check status code.
-    res.read_to_string(&mut buffer).context(::ErrorKind::HttpGet)?;
+    res.read_to_string(&mut buffer)
+        .context(::ErrorKind::HttpGet)?;
     Ok(buffer)
 }
 
@@ -102,11 +95,7 @@ fn get(args: Vec<String>) -> ::Result<()> {
     let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
     let body = http_get(&url)?;
 
-    match ColorScheme::from_iterm(&body) {
-        Ok(scheme) => print!("{}", scheme.to_yaml()),
-        Err(e) => panic!(format!("{:?}", e)),
-    }
-    Ok(())
+    ColorScheme::from_iterm(&body).map(|scheme| print!("{}", scheme.to_yaml()))
 }
 
 fn help() -> Result<()> {
@@ -157,8 +146,8 @@ fn main() -> ::Result<()> {
         Err(e) => {
             eprintln!("error: {}", e);
             process::exit(1);
-        },
-        _ => {},
+        }
+        _ => {}
     }
     Ok(())
 }

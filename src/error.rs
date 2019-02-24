@@ -1,7 +1,7 @@
+use failure::{Backtrace, Context, Fail};
 use std::convert::From;
 use std::fmt::{self, Display};
 use std::result;
-use failure::{Backtrace, Context, Fail};
 use xml::Xml;
 
 pub type Result<T> = result::Result<T, Error>;
@@ -9,41 +9,54 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug, Fail, PartialEq)]
 pub enum ErrorKind {
     // -- CLI errors
-    #[fail(display="failed on HTTP GET")]
+    #[fail(display = "failed on HTTP GET")]
     HttpGet,
 
-    #[fail(display="failed to parse JSON")]
+    #[fail(display = "failed to parse JSON")]
     ParseJson,
 
-    // -- Mintty errors
+    #[fail(display = "source is not specified")]
+    MissingSource,
 
-    #[fail(display="invalid color representation: {}", _0)]
+    #[fail(display = "input format is not specified and failed to guess")]
+    MissingInputFormat,
+
+    #[fail(display = "failed to read from stdin")]
+    ReadStdin,
+
+    #[fail(display = "failed to read source")]
+    ReadSource,
+
+    #[fail(display = "failed to parse arguments")]
+    InvalidArgument,
+
+    // -- Mintty errors
+    #[fail(display = "invalid color representation: {}", _0)]
     InvalidColorFormat(String),
 
-    #[fail(display="invalid line: {}", _0)]
+    #[fail(display = "invalid line: {}", _0)]
     InvalidLineFormat(String),
 
-    #[fail(display="unknown color name: {}", _0)]
+    #[fail(display = "unknown color name: {}", _0)]
     UnknownColorName(String),
 
-    #[fail(display="failed to parse int")]
+    #[fail(display = "failed to parse int")]
     ParseInt,
 
     // -- iTerm errors
-
-    #[fail(display="invalid XML")]
+    #[fail(display = "invalid XML")]
     XMLParse,
 
-    #[fail(display="root dict was not found")]
+    #[fail(display = "root dict was not found")]
     NoRootDict,
 
-    #[fail(display="cannot extract text from: {}", _0)]
+    #[fail(display = "cannot extract text from: {}", _0)]
     NotCharacterNode(Xml),
 
-    #[fail(display="unknown color component: {}", _0)]
+    #[fail(display = "unknown color component: {}", _0)]
     UnknownColorComponent(String),
 
-    #[fail(display="failed to parse float")]
+    #[fail(display = "failed to parse float")]
     ParseFloat,
 }
 
