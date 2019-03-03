@@ -1,4 +1,5 @@
 extern crate failure;
+extern crate reqwest;
 extern crate xml;
 
 pub mod color;

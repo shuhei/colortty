@@ -1,17 +1,12 @@
 extern crate colortty;
 extern crate failure;
 extern crate getopts;
-extern crate hyper;
-extern crate hyper_openssl;
 extern crate json;
+extern crate reqwest;
 
 use colortty::*;
 use failure::ResultExt;
 use getopts::Options;
-use hyper::client::Client;
-use hyper::header::UserAgent;
-use hyper::net::HttpsConnector;
-use hyper_openssl::OpensslClient;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
@@ -61,20 +56,20 @@ fn convert(args: Vec<String>) -> ::Result<()> {
 }
 
 fn http_get(url: &str) -> ::Result<String> {
-    let ssl = OpensslClient::new().context(::ErrorKind::HttpGet)?;
-    let connector = HttpsConnector::new(ssl);
-    let client = Client::with_connector(connector);
-
+    // TODO: Use .json() with Deserialize?
+    let client = reqwest::Client::new();
     let mut res = client
         .get(url)
-        .header(UserAgent("colortty".to_string()))
+        .header(reqwest::header::USER_AGENT, "colortty")
         .send()
         .context(::ErrorKind::HttpGet)?;
-    let mut buffer = String::new();
-    // TODO: Check status code.
-    res.read_to_string(&mut buffer)
-        .context(::ErrorKind::HttpGet)?;
-    Ok(buffer)
+
+    if !res.status().is_success() {
+        Err(::ErrorKind::HttpGet)?
+    }
+
+    let body = res.text().context(::ErrorKind::HttpGet)?;
+    Ok(body)
 }
 
 fn list() -> ::Result<()> {
