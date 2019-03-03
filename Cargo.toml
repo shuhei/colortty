@@ -2,10 +2,15 @@
 name = "colortty"
 version = "0.1.0"
 authors = ["Shuhei Kagawa <shuhei.kagawa@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/shuhei/colortty"
+readme = "README.md"
+keywords = ["alacritty", "color"]
+categories = ["command-line-utilities"]
 
 [dependencies]
-getopts = "*"
-RustyXML = "*"
-reqwest = "0.9"
-json = "*"
-failure = "*"
+getopts = "0.2.18"
+RustyXML = "0.1.1"
+reqwest = "0.9.10"
+json = "0.11.13"
+failure = "0.1.5"
