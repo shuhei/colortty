@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["alacritty", "color"]
 categories = ["command-line-utilities"]
 description = "A utility to generate color schemes for alacritty"
+edition = "2018"
 
 [dependencies]
 getopts = "0.2.18"

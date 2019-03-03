@@ -3,7 +3,7 @@ extern crate colortty;
 #[cfg(test)]
 mod color_tests {
     mod color {
-        use colortty::color::Color;
+        use colortty::Color;
 
         #[test]
         fn from_string_works() {
@@ -42,7 +42,7 @@ mod color_tests {
     }
 
     mod color_scheme {
-        use colortty::color::ColorScheme;
+        use colortty::ColorScheme;
         use std::fs::File;
         use std::io::Read;
 

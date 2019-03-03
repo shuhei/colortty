@@ -5,5 +5,5 @@ extern crate xml;
 pub mod color;
 pub mod error;
 
-pub use color::{ColorScheme, ColorSchemeFormat};
-pub use error::{Error, ErrorKind, Result};
+pub use crate::color::{Color, ColorScheme, ColorSchemeFormat};
+pub use crate::error::{Error, ErrorKind, Result};
