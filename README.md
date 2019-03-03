@@ -5,34 +5,35 @@ colortty is a utility to generate color schemes for alacritty. It also supports 
 - iTerm 2 -> [alacritty](https://github.com/jwilm/alacritty)
 - [mintty](https://github.com/mintty/mintty) -> [alacritty](https://github.com/jwilm/alacritty)
 
+## Installation
+
+```sh
+cargo install colortty
+```
+
 ## Usage
 
-List color schemes at [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes):
-
 ```sh
-colortty list
-```
+colortty - color scheme converter for alacritty
 
-Get color scheme from [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) in Alacritty format:
+USAGE:
+    # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
+    colortty list
 
-```sh
-colortty get <color scheme name>
-```
+    # Get color scheme from https://github.com/mbadolato/iTerm2-Color-Schemes
+    colortty get <color scheme name>
 
-Convert:
+    # Convert with implicit input type
+    colortty convert some-color.itermcolors
+    colortty convert some-color.minttyrc
 
-```sh
-# Convert with implicit input type
-colortty convert some-color.itermcolors
-colortty convert some-color.minttyrc
+    # Convert with explicit input type
+    colortty convert -i iterm some-color-theme
+    colortty convert -i mintty some-color-theme
 
-# Convert with explicit input type
-colortty convert -i iterm some-color-theme
-colortty convert -i mintty some-color-theme
-
-# Convert stdin (explicit input type is necessary)
-cat some-color-theme | colortty convert -i iterm -
-cat some-color-theme | colortty convert -i mintty -"
+    # Convert stdin (explicit input type is necessary)
+    cat some-color-theme | colortty convert -i iterm -
+    cat some-color-theme | colortty convert -i mintty -
 ```
 
 ## Development
