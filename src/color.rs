@@ -41,7 +41,7 @@ pub struct Color {
 
 impl Color {
     pub fn from_mintty_color(s: &str) -> Result<Self> {
-        let rgb: Vec<_> = s.split(",").collect();
+        let rgb: Vec<_> = s.split(',').collect();
         if rgb.len() != 3 {
             Err(ErrorKind::InvalidColorFormat(s.to_owned()))?;
         }
