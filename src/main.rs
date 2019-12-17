@@ -79,23 +79,6 @@ fn convert(args: Vec<String>) -> Result<()> {
     scheme_result.map(|schema| println!("{}", schema.to_yaml()))
 }
 
-fn http_get(url: &str) -> Result<String> {
-    // TODO: Use .json() with Deserialize?
-    let client = reqwest::Client::new();
-    let mut res = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "colortty")
-        .send()
-        .context(ErrorKind::HttpGet)?;
-
-    if !res.status().is_success() {
-        Err(ErrorKind::HttpGet)?
-    }
-
-    let body = res.text().context(ErrorKind::HttpGet)?;
-    Ok(body)
-}
-
 fn list(args: Vec<String>) -> Result<()> {
     let mut opts = Options::new();
     opts.optopt(
@@ -106,12 +89,16 @@ fn list(args: Vec<String>) -> Result<()> {
     );
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
     let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    if provider == "iterm" {
-        list_iterm()?;
-    } else if provider == "gogh" {
-        list_gogh()?;
-    } else {
-        Err(ErrorKind::UnknownProvider(provider))?;
+    match provider.as_ref() {
+        "iterm" => {
+            list_iterm()?;
+        }
+        "gogh" => {
+            list_gogh()?;
+        }
+        _ => {
+            Err(ErrorKind::UnknownProvider(provider))?;
+        }
     }
     Ok(())
 }
@@ -150,10 +137,26 @@ fn get(args: Vec<String>) -> Result<()> {
     }
     let name = &matches.free[0];
 
-    let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
-    let body = http_get(&url)?;
-
-    ColorScheme::from_iterm(&body).map(|scheme| print!("{}", scheme.to_yaml()))
+    let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
+    let color_scheme = match provider.as_ref() {
+        "iterm" => {
+            let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
+            let body = http_get(&url)?;
+            ColorScheme::from_iterm(&body)
+        }
+        "gogh" => {
+            let url = format!(
+                "https://raw.githubusercontent.com/Mayccoll/Gogh/master/themes/{}.sh",
+                name
+            );
+            let body = http_get(&url)?;
+            ColorScheme::from_gogh(&body)
+        }
+        _ => {
+            return Err(ErrorKind::UnknownProvider(provider))?;
+        }
+    };
+    color_scheme.map(|scheme| print!("{}", scheme.to_yaml()))
 }
 
 fn help() -> Result<()> {
@@ -195,6 +198,23 @@ USAGE:
 }
 
 // -- Utility functions
+
+fn http_get(url: &str) -> Result<String> {
+    // TODO: Use .json() with Deserialize?
+    let client = reqwest::Client::new();
+    let mut res = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, "colortty")
+        .send()
+        .context(ErrorKind::HttpGet)?;
+
+    if !res.status().is_success() {
+        Err(ErrorKind::HttpGet)?
+    }
+
+    let body = res.text().context(ErrorKind::HttpGet)?;
+    Ok(body)
+}
 
 fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {
     let mut opts = Options::new();

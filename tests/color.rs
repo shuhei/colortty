@@ -6,9 +6,9 @@ mod color_tests {
         use colortty::Color;
 
         #[test]
-        fn from_string_works() {
+        fn from_mintty_color_works() {
             assert_eq!(
-                Color::from_string("12,3,255").unwrap(),
+                Color::from_mintty_color("12,3,255").unwrap(),
                 Color {
                     red: 12,
                     green: 3,
@@ -18,13 +18,13 @@ mod color_tests {
         }
 
         #[test]
-        fn from_string_invalid_format() {
-            assert!(Color::from_string("123").is_err());
+        fn from_mintty_color_invalid_format() {
+            assert!(Color::from_mintty_color("123").is_err());
         }
 
         #[test]
-        fn from_string_parse_int_error() {
-            assert!(Color::from_string("abc,3,fo").is_err());
+        fn from_mintty_color_parse_int_error() {
+            assert!(Color::from_mintty_color("abc,3,fo").is_err());
         }
 
         #[test]
@@ -124,6 +124,42 @@ mod color_tests {
 "
             .to_string();
             let scheme = ColorScheme::from_iterm(&dracula_iterm).unwrap();
+            assert_eq!(scheme.to_yaml(), dracula_alacritty);
+        }
+
+        #[test]
+        fn convert_gogh() {
+            let dracula_gogh = read_fixture("tests/fixtures/dracula.sh");
+            let dracula_alacritty: String = "colors:
+  # Default colors
+  primary:
+    background: '0x282a36'
+    foreground: '0x000000'
+
+  # Normal colors
+  normal:
+    black:   '0x44475a'
+    red:     '0xff5555'
+    green:   '0x50fa7b'
+    yellow:  '0xffb86c'
+    blue:    '0x8be9fd'
+    magenta: '0xbd93f9'
+    cyan:    '0xff79c6'
+    white:   '0x000000'
+
+  # Bright colors
+  bright:
+    black:   '0x000000'
+    red:     '0xff5555'
+    green:   '0x50fa7b'
+    yellow:  '0xffb86c'
+    blue:    '0x8be9fd'
+    magenta: '0xbd93f9'
+    cyan:    '0xff79c6'
+    white:   '0xffffff'
+"
+            .to_string();
+            let scheme = ColorScheme::from_gogh(&dracula_gogh).unwrap();
             assert_eq!(scheme.to_yaml(), dracula_alacritty);
         }
     }

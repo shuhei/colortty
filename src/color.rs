@@ -1,5 +1,6 @@
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
+use regex::Regex;
 use xml::{Element, Xml};
 
 pub enum ColorSchemeFormat {
@@ -35,8 +36,7 @@ pub struct Color {
 }
 
 impl Color {
-    // TODO: Move this out because it's only for mintty format.
-    pub fn from_string(s: &str) -> Result<Self> {
+    pub fn from_mintty_color(s: &str) -> Result<Self> {
         let rgb: Vec<_> = s.split(",").collect();
         if rgb.len() != 3 {
             Err(ErrorKind::InvalidColorFormat(s.to_owned()))?;
@@ -44,12 +44,14 @@ impl Color {
         let red = parse_int(rgb[0])?;
         let green = parse_int(rgb[1])?;
         let blue = parse_int(rgb[2])?;
-        let color = Color {
-            red: red,
-            green: green,
-            blue: blue,
-        };
-        Ok(color)
+        Ok(Color { red, green, blue })
+    }
+
+    pub fn from_gogh_color(s: &str) -> Result<Self> {
+        let red = parse_hex(&s[1..3])?;
+        let green = parse_hex(&s[3..5])?;
+        let blue = parse_hex(&s[5..7])?;
+        Ok(Color { red, green, blue })
     }
 
     pub fn to_hex(&self) -> String {
@@ -59,6 +61,10 @@ impl Color {
 
 fn parse_int(s: &str) -> Result<u8> {
     Ok(s.parse::<u8>().context(ErrorKind::ParseInt)?)
+}
+
+fn parse_hex(s: &str) -> Result<u8> {
+    Ok(u8::from_str_radix(s, 16).context(ErrorKind::ParseInt)?)
 }
 
 fn extract_text(element: &Element) -> Result<&str> {
@@ -102,7 +108,7 @@ impl ColorScheme {
                 Err(ErrorKind::InvalidLineFormat(line.to_owned()))?;
             }
             let name = components[0];
-            let color = Color::from_string(components[1])?;
+            let color = Color::from_mintty_color(components[1])?;
             match name {
                 "ForegroundColour" => scheme.foreground = color,
                 "BackgroundColour" => scheme.background = color,
@@ -186,6 +192,40 @@ impl ColorScheme {
             }
         }
 
+        Ok(scheme)
+    }
+
+    pub fn from_gogh(content: &str) -> Result<Self> {
+        // Match against export XXX="yyy"
+        let pattern = Regex::new(r#"export ([A-Z0-9_]+)="(#[0-9a-f]{6})""#).unwrap();
+        let mut scheme = ColorScheme::default();
+        for line in content.lines() {
+            if let Some(caps) = pattern.captures(line) {
+                let name = caps.get(1).unwrap().as_str();
+                let color = Color::from_gogh_color(caps.get(2).unwrap().as_str())?;
+                match name {
+                    "FOREGROUND_COLOR" => scheme.foreground = color,
+                    "BACKGROUND_COLOR" => scheme.background = color,
+                    "COLOR_01" => scheme.black = color,
+                    "COLOR_02" => scheme.red = color,
+                    "COLOR_03" => scheme.green = color,
+                    "COLOR_04" => scheme.yellow = color,
+                    "COLOR_05" => scheme.blue = color,
+                    "COLOR_06" => scheme.magenta = color,
+                    "COLOR_07" => scheme.cyan = color,
+                    "COLOR_08" => scheme.white = color,
+                    "COLOR_09" => scheme.bright_black = color,
+                    "COLOR_10" => scheme.bright_red = color,
+                    "COLOR_11" => scheme.bright_green = color,
+                    "COLOR_12" => scheme.bright_yellow = color,
+                    "COLOR_13" => scheme.bright_blue = color,
+                    "COLOR_14" => scheme.bright_magenta = color,
+                    "COLOR_15" => scheme.bright_cyan = color,
+                    "COLOR_16" => scheme.bright_white = color,
+                    _ => {}
+                }
+            }
+        }
         Ok(scheme)
     }
 
