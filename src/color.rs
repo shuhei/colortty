@@ -6,6 +6,7 @@ use xml::{Element, Xml};
 pub enum ColorSchemeFormat {
     ITerm,
     Mintty,
+    Gogh,
 }
 
 impl ColorSchemeFormat {
@@ -13,17 +14,20 @@ impl ColorSchemeFormat {
         match s {
             "iterm" => Some(ColorSchemeFormat::ITerm),
             "mintty" => Some(ColorSchemeFormat::Mintty),
+            "gogh" => Some(ColorSchemeFormat::Gogh),
             _ => None,
         }
     }
 
     pub fn from_filename(s: &str) -> Option<Self> {
-        if s.contains(".itermcolors") {
-            return Some(ColorSchemeFormat::ITerm);
-        } else if s.contains(".minttyrc") {
-            return Some(ColorSchemeFormat::Mintty);
+        if s.ends_with(".itermcolors") {
+            Some(ColorSchemeFormat::ITerm)
+        } else if s.ends_with(".minttyrc") {
+            Some(ColorSchemeFormat::Mintty)
+        } else if s.ends_with(".sh") {
+            Some(ColorSchemeFormat::Gogh)
         } else {
-            return None;
+            None
         }
     }
 }

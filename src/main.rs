@@ -43,7 +43,7 @@ fn convert(args: Vec<String>) -> Result<()> {
     opts.optopt(
         "i",
         "input-format",
-        "input format: 'iterm'|'mintty'",
+        "input format: 'iterm'|'mintty'|'gogh'",
         "INPUT_FORMAT",
     );
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
@@ -74,6 +74,7 @@ fn convert(args: Vec<String>) -> Result<()> {
     let scheme_result = match input_format {
         ColorSchemeFormat::ITerm => ColorScheme::from_iterm(&buffer),
         ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
+        ColorSchemeFormat::Gogh => ColorScheme::from_gogh(&buffer),
     };
 
     scheme_result.map(|schema| println!("{}", schema.to_yaml()))
