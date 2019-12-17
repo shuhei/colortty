@@ -158,9 +158,7 @@ impl ColorScheme {
                     "Alpha Component" => {}
                     "Color Space" => {}
                     _ => {
-                        Err(ErrorKind::UnknownColorComponent(
-                            component_name.to_owned(),
-                        ))?;
+                        Err(ErrorKind::UnknownColorComponent(component_name.to_owned()))?;
                     }
                 };
             }

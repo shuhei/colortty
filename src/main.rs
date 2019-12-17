@@ -20,9 +20,7 @@ fn convert(args: Vec<String>) -> Result<()> {
         "input format: 'iterm'|'mintty'",
         "INPUT_FORMAT",
     );
-    let matches = opts
-        .parse(&args[2..])
-        .context(ErrorKind::InvalidArgument)?;
+    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
         Err(ErrorKind::MissingSource)?;
