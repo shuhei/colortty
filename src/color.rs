@@ -97,7 +97,7 @@ impl ColorScheme {
     pub fn from_minttyrc(content: &str) -> Result<Self> {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
-            let components: Vec<&str> = line.split("=").collect();
+            let components: Vec<&str> = line.split('=').collect();
             if components.len() != 2 {
                 Err(ErrorKind::InvalidLineFormat(line.to_owned()))?;
             }

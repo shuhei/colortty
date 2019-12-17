@@ -58,6 +58,13 @@ pub enum ErrorKind {
 
     #[fail(display = "failed to parse float")]
     ParseFloat,
+
+    // -- Provider errors
+    #[fail(display = "unknown color scheme provider: {}", _0)]
+    UnknownProvider(String),
+
+    #[fail(display = "missing color scheme name")]
+    MissingName,
 }
 
 #[derive(Debug)]
