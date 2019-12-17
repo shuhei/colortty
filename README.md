@@ -1,9 +1,10 @@
 # colortty
 
-colortty is a utility to generate color schemes for alacritty. It also supports the following conversions:
+colortty is a utility to generate color schemes for [alacritty](https://github.com/jwilm/alacritty). It also supports the following conversions:
 
-- iTerm 2 -> [alacritty](https://github.com/jwilm/alacritty)
-- [mintty](https://github.com/mintty/mintty) -> [alacritty](https://github.com/jwilm/alacritty)
+- iTerm 2 -> alacritty
+- [mintty](https://github.com/mintty/mintty) -> alacritty
+- [Gogh](https://github.com/Mayccoll/Gogh) -> alacritty
 
 ## Installation
 
@@ -19,21 +20,32 @@ colortty - color scheme converter for alacritty
 USAGE:
     # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty list
+    colortty list -p iterm
+
+    # List color schemes at https://github.com/Mayccoll/Gogh
+    colortty list -p gogh
 
     # Get color scheme from https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty get <color scheme name>
+    colortty get -p iterm <color scheme name>
+
+    # Get color scheme from https://github.com/Mayccoll/Gogh
+    colortty get -p gogh <color scheme name>
 
     # Convert with implicit input type
     colortty convert some-color.itermcolors
     colortty convert some-color.minttyrc
+    colortty convert some-color.sh
 
     # Convert with explicit input type
     colortty convert -i iterm some-color-theme
     colortty convert -i mintty some-color-theme
+    colortty convert -i gogh some-color-theme
 
     # Convert stdin (explicit input type is necessary)
     cat some-color-theme | colortty convert -i iterm -
     cat some-color-theme | colortty convert -i mintty -
+    cat some-color-theme | colortty convert -i gogh -"
 ```
 
 ## Development
