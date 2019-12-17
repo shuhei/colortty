@@ -201,7 +201,7 @@ impl ColorScheme {
 
     pub fn from_gogh(content: &str) -> Result<Self> {
         // Match against export XXX="yyy"
-        let pattern = Regex::new(r#"export ([A-Z0-9_]+)="(#[0-9a-f]{6})""#).unwrap();
+        let pattern = Regex::new(r#"export ([A-Z0-9_]+)="(#[0-9a-fA-F]{6})""#).unwrap();
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
             if let Some(caps) = pattern.captures(line) {
