@@ -43,7 +43,7 @@ impl Color {
     pub fn from_mintty_color(s: &str) -> Result<Self> {
         let rgb: Vec<_> = s.split(',').collect();
         if rgb.len() != 3 {
-            Err(ErrorKind::InvalidColorFormat(s.to_owned()))?;
+            return Err(ErrorKind::InvalidColorFormat(s.to_owned()).into());
         }
         let red = parse_int(rgb[0])?;
         let green = parse_int(rgb[1])?;
@@ -74,8 +74,8 @@ fn parse_hex(s: &str) -> Result<u8> {
 fn extract_text(element: &Element) -> Result<&str> {
     let first = &element.children[0];
     match first {
-        &Xml::CharacterNode(ref text) => Ok(text),
-        _ => Err(ErrorKind::NotCharacterNode(first.to_owned()))?,
+        Xml::CharacterNode(ref text) => Ok(text),
+        _ => Err(ErrorKind::NotCharacterNode(Box::new(first.to_owned())).into()),
     }
 }
 
@@ -109,7 +109,7 @@ impl ColorScheme {
         for line in content.lines() {
             let components: Vec<&str> = line.split('=').collect();
             if components.len() != 2 {
-                Err(ErrorKind::InvalidLineFormat(line.to_owned()))?;
+                return Err(ErrorKind::InvalidLineFormat(line.to_owned()).into());
             }
             let name = components[0];
             let color = Color::from_mintty_color(components[1])?;
@@ -132,7 +132,7 @@ impl ColorScheme {
                 "BoldMagenta" => scheme.bright_magenta = color,
                 "BoldCyan" => scheme.bright_cyan = color,
                 "BoldWhite" => scheme.bright_white = color,
-                _ => Err(ErrorKind::UnknownColorName(name.to_owned()))?,
+                _ => return Err(ErrorKind::UnknownColorName(name.to_owned()).into()),
             }
         }
         Ok(scheme)
@@ -168,7 +168,9 @@ impl ColorScheme {
                     "Alpha Component" => {}
                     "Color Space" => {}
                     _ => {
-                        Err(ErrorKind::UnknownColorComponent(component_name.to_owned()))?;
+                        return Err(
+                            ErrorKind::UnknownColorComponent(component_name.to_owned()).into()
+                        );
                     }
                 };
             }

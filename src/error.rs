@@ -51,7 +51,7 @@ pub enum ErrorKind {
     NoRootDict,
 
     #[fail(display = "cannot extract text from: {}", _0)]
-    NotCharacterNode(Xml),
+    NotCharacterNode(Box<Xml>),
 
     #[fail(display = "unknown color component: {}", _0)]
     UnknownColorComponent(String),
@@ -79,7 +79,7 @@ impl Error {
 }
 
 impl Fail for Error {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
 

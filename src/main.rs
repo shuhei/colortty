@@ -49,7 +49,7 @@ fn convert(args: Vec<String>) -> Result<()> {
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
-        Err(ErrorKind::MissingSource)?;
+        return Err(ErrorKind::MissingSource.into());
     }
 
     let source = &matches.free[0];
@@ -91,17 +91,10 @@ fn list(args: Vec<String>) -> Result<()> {
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
     let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
     match provider.as_ref() {
-        "iterm" => {
-            list_iterm()?;
-        }
-        "gogh" => {
-            list_gogh()?;
-        }
-        _ => {
-            Err(ErrorKind::UnknownProvider(provider))?;
-        }
+        "iterm" => list_iterm(),
+        "gogh" => list_gogh(),
+        _ => Err(ErrorKind::UnknownProvider(provider).into()),
     }
-    Ok(())
 }
 
 fn list_iterm() -> Result<()> {
@@ -134,7 +127,7 @@ fn get(args: Vec<String>) -> Result<()> {
     let matches = parse_args_with_provider(args)?;
 
     if matches.free.is_empty() {
-        Err(ErrorKind::MissingName)?;
+        return Err(ErrorKind::MissingName.into());
     }
     let name = &matches.free[0];
 
@@ -154,7 +147,7 @@ fn get(args: Vec<String>) -> Result<()> {
             ColorScheme::from_gogh(&body)
         }
         _ => {
-            return Err(ErrorKind::UnknownProvider(provider))?;
+            return Err(ErrorKind::UnknownProvider(provider).into());
         }
     };
     color_scheme.map(|scheme| print!("{}", scheme.to_yaml()))
@@ -210,7 +203,7 @@ fn http_get(url: &str) -> Result<String> {
         .context(ErrorKind::HttpGet)?;
 
     if !res.status().is_success() {
-        Err(ErrorKind::HttpGet)?
+        return Err(ErrorKind::HttpGet.into());
     }
 
     let body = res.text().context(ErrorKind::HttpGet)?;
