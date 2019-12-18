@@ -1,9 +1,11 @@
+extern crate async_std;
 extern crate colortty;
 extern crate failure;
 extern crate getopts;
 extern crate json;
-extern crate reqwest;
+extern crate surf;
 
+use async_std::task;
 use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Result};
 use failure::ResultExt;
 use getopts::Options;
@@ -193,21 +195,17 @@ USAGE:
 
 // -- Utility functions
 
-fn http_get(url: &str) -> Result<String> {
-    // TODO: Use .json() with Deserialize?
-    let client = reqwest::Client::new();
-    let mut res = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "colortty")
-        .send()
-        .context(ErrorKind::HttpGet)?;
+async fn http_get(url: &str) -> Result<String> {
+    // .context(ErrorKind::HttpGet)?;
+    // .header(reqwest::header::USER_AGENT, "colortty")
+    let res = surf::get(url).await?;
 
     if !res.status().is_success() {
         return Err(ErrorKind::HttpGet.into());
     }
 
-    let body = res.text().context(ErrorKind::HttpGet)?;
-    Ok(body)
+    // .context(ErrorKind::HttpGet)?;
+    res.body_string().await
 }
 
 fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {

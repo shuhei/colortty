@@ -1,6 +1,7 @@
+extern crate async_std;
 extern crate failure;
 extern crate regex;
-extern crate reqwest;
+extern crate surf;
 extern crate xml;
 
 pub mod color;
