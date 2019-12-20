@@ -2,9 +2,8 @@ extern crate colortty;
 extern crate failure;
 extern crate getopts;
 extern crate json;
-extern crate reqwest;
 
-use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Result};
+use colortty::{http_get, ColorScheme, ColorSchemeFormat, ErrorKind, Repo, Result};
 use failure::ResultExt;
 use getopts::Options;
 use std::env;
@@ -134,16 +133,13 @@ fn get(args: Vec<String>) -> Result<()> {
     let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
     let color_scheme = match provider.as_ref() {
         "iterm" => {
-            let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
-            let body = http_get(&url)?;
+            let repo = Repo::new("mbadolato", "iTerm2-Color-Schemes", "schemes");
+            let body = repo.get(&format!("{}.itermcolors", name))?;
             ColorScheme::from_iterm(&body)
         }
         "gogh" => {
-            let url = format!(
-                "https://raw.githubusercontent.com/Mayccoll/Gogh/master/themes/{}.sh",
-                name
-            );
-            let body = http_get(&url)?;
+            let repo = Repo::new("Mayccoll", "Gogh", "themes");
+            let body = repo.get(&format!("{}.sh", name))?;
             ColorScheme::from_gogh(&body)
         }
         _ => {
@@ -192,23 +188,6 @@ USAGE:
 }
 
 // -- Utility functions
-
-fn http_get(url: &str) -> Result<String> {
-    // TODO: Use .json() with Deserialize?
-    let client = reqwest::Client::new();
-    let mut res = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "colortty")
-        .send()
-        .context(ErrorKind::HttpGet)?;
-
-    if !res.status().is_success() {
-        return Err(ErrorKind::HttpGet.into());
-    }
-
-    let body = res.text().context(ErrorKind::HttpGet)?;
-    Ok(body)
-}
 
 fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {
     let mut opts = Options::new();
