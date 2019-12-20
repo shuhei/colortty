@@ -3,7 +3,7 @@ extern crate failure;
 extern crate getopts;
 extern crate json;
 
-use colortty::{http_get, ColorScheme, ColorSchemeFormat, ErrorKind, Repo, Result};
+use colortty::{http_get, ColorScheme, ColorSchemeFormat, ErrorKind, Provider, Result};
 use failure::ResultExt;
 use getopts::Options;
 use std::env;
@@ -130,20 +130,25 @@ fn get(args: Vec<String>) -> Result<()> {
     }
     let name = &matches.free[0];
 
-    let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    let color_scheme = match provider.as_ref() {
+    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
+    let color_scheme = match provider_name.as_ref() {
         "iterm" => {
-            let repo = Repo::new("mbadolato", "iTerm2-Color-Schemes", "schemes");
-            let body = repo.get(&format!("{}.itermcolors", name))?;
+            let provider = Provider::new(
+                "mbadolato",
+                "iTerm2-Color-Schemes",
+                "schemes",
+                ".itermcolors",
+            );
+            let body = provider.get(name)?;
             ColorScheme::from_iterm(&body)
         }
         "gogh" => {
-            let repo = Repo::new("Mayccoll", "Gogh", "themes");
-            let body = repo.get(&format!("{}.sh", name))?;
+            let provider = Provider::new("Mayccoll", "Gogh", "themes", ".sh");
+            let body = provider.get(name)?;
             ColorScheme::from_gogh(&body)
         }
         _ => {
-            return Err(ErrorKind::UnknownProvider(provider).into());
+            return Err(ErrorKind::UnknownProvider(provider_name).into());
         }
     };
     color_scheme.map(|scheme| print!("{}", scheme.to_yaml()))

@@ -1,25 +1,27 @@
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
 
-pub struct Repo {
+pub struct Provider {
     user_name: String,
     repo_name: String,
     list_path: String,
+    extension: String,
 }
 
-impl Repo {
-    pub fn new(user_name: &str, repo_name: &str, list_path: &str) -> Self {
-        Repo {
+impl Provider {
+    pub fn new(user_name: &str, repo_name: &str, list_path: &str, extension: &str) -> Self {
+        Provider {
             user_name: user_name.to_string(),
             repo_name: repo_name.to_string(),
             list_path: list_path.to_string(),
+            extension: extension.to_string(),
         }
     }
 
-    pub fn get(&self, filename: &str) -> Result<String> {
+    pub fn get(&self, name: &str) -> Result<String> {
         let url = format!(
-            "https://raw.githubusercontent.com/{}/{}/master/{}/{}",
-            self.user_name, self.repo_name, self.list_path, filename
+            "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
+            self.user_name, self.repo_name, self.list_path, name, self.extension
         );
         http_get(&url)
     }
