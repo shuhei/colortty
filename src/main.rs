@@ -3,7 +3,7 @@ extern crate failure;
 extern crate getopts;
 extern crate json;
 
-use colortty::{http_get, ColorScheme, ColorSchemeFormat, ErrorKind, Provider, Result};
+use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Provider, Result};
 use failure::ResultExt;
 use getopts::Options;
 use std::env;
@@ -97,9 +97,7 @@ fn list(args: Vec<String>) -> Result<()> {
 }
 
 fn list_iterm() -> Result<()> {
-    let schemes_url =
-        "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
-    let buffer = http_get(schemes_url)?;
+    let buffer = Provider::iterm().list()?;
     let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
     for item in items.members() {
         let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
@@ -109,8 +107,7 @@ fn list_iterm() -> Result<()> {
 }
 
 fn list_gogh() -> Result<()> {
-    let themes_url = "https://api.github.com/repos/Mayccoll/Gogh/contents/themes";
-    let buffer = http_get(themes_url)?;
+    let buffer = Provider::gogh().list()?;
     let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
     for item in items.members() {
         let filename = item["name"].as_str().unwrap();
@@ -133,18 +130,11 @@ fn get(args: Vec<String>) -> Result<()> {
     let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
     let color_scheme = match provider_name.as_ref() {
         "iterm" => {
-            let provider = Provider::new(
-                "mbadolato",
-                "iTerm2-Color-Schemes",
-                "schemes",
-                ".itermcolors",
-            );
-            let body = provider.get(name)?;
+            let body = Provider::iterm().get(name)?;
             ColorScheme::from_iterm(&body)
         }
         "gogh" => {
-            let provider = Provider::new("Mayccoll", "Gogh", "themes", ".sh");
-            let body = provider.get(name)?;
+            let body = Provider::gogh().get(name)?;
             ColorScheme::from_gogh(&body)
         }
         _ => {

@@ -1,6 +1,7 @@
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
 
+/// A GitHub repository that provides color schemes.
 pub struct Provider {
     user_name: String,
     repo_name: String,
@@ -9,7 +10,23 @@ pub struct Provider {
 }
 
 impl Provider {
-    pub fn new(user_name: &str, repo_name: &str, list_path: &str, extension: &str) -> Self {
+    /// Returns a provider for `mbadolato/iTerm2-Color-Schemes`.
+    pub fn iterm() -> Self {
+        Provider::new(
+            "mbadolato",
+            "iTerm2-Color-Schemes",
+            "schemes",
+            ".itermcolors",
+        )
+    }
+
+    /// Returns a provider for `Mayccoll/Gogh`.
+    pub fn gogh() -> Self {
+        Provider::new("Mayccoll", "Gogh", "themes", ".sh")
+    }
+
+    /// Returns a provider instance.
+    fn new(user_name: &str, repo_name: &str, list_path: &str, extension: &str) -> Self {
         Provider {
             user_name: user_name.to_string(),
             repo_name: repo_name.to_string(),
@@ -18,6 +35,7 @@ impl Provider {
         }
     }
 
+    /// Fetches the raw content of the color scheme for the given name.
     pub fn get(&self, name: &str) -> Result<String> {
         let url = format!(
             "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
@@ -25,9 +43,19 @@ impl Provider {
         );
         http_get(&url)
     }
+
+    /// Fetches the raw content for the color scheme list.
+    pub fn list(&self) -> Result<String> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/contents/{}",
+            self.user_name, self.repo_name, self.list_path
+        );
+        http_get(&url)
+    }
 }
 
-pub fn http_get(url: &str) -> Result<String> {
+/// Returns the body of the given URL.
+fn http_get(url: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let mut res = client
         .get(url)
