@@ -134,7 +134,7 @@ mod color_tests {
   # Default colors
   primary:
     background: '0x282a36'
-    foreground: '0x000000'
+    foreground: '0x94a3a5'
 
   # Normal colors
   normal:
@@ -145,7 +145,7 @@ mod color_tests {
     blue:    '0x8be9fd'
     magenta: '0xbd93f9'
     cyan:    '0xff79c6'
-    white:   '0x000000'
+    white:   '0x94a3a5'
 
   # Bright colors
   bright:
