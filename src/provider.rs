@@ -6,6 +6,7 @@ use failure::ResultExt;
 use futures::future;
 use git2::Repository;
 use std::path::{Path, PathBuf};
+use surf;
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -42,12 +43,12 @@ impl Provider {
     }
 
     /// Fetches the raw content of the color scheme for the given name.
-    pub fn get(&self, name: &str) -> Result<ColorScheme> {
+    pub async fn get(&self, name: &str) -> Result<ColorScheme> {
         let url = format!(
             "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
             self.user_name, self.repo_name, self.list_path, name, self.extension
         );
-        let body = http_get(&url)?;
+        let body = http_get(&url).await?;
         self.parse_color_scheme(&body)
     }
 
@@ -144,18 +145,17 @@ impl Provider {
 }
 
 /// Returns the body of the given URL.
-fn http_get(url: &str) -> Result<String> {
-    let client = reqwest::Client::new();
-    let mut res = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "colortty")
-        .send()
-        .context(ErrorKind::HttpGet)?;
+async fn http_get(url: &str) -> Result<String> {
+    let mut res = surf::get(url)
+        .set_header("User-Agent", "colortty")
+        .await
+        .map_err(|_| ErrorKind::HttpGet)?;
 
     if !res.status().is_success() {
         return Err(ErrorKind::HttpGet.into());
     }
 
-    let body = res.text().context(ErrorKind::HttpGet)?;
+    // TODO: Propagate information from the original error.
+    let body = res.body_string().await.map_err(|_| ErrorKind::HttpGet)?;
     Ok(body)
 }

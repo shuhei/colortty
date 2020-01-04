@@ -17,7 +17,7 @@ async fn main() {
     match args[1].as_ref() {
         "convert" => handle_error(convert(args)),
         "list" => handle_error(list(args).await),
-        "get" => handle_error(get(args)),
+        "get" => handle_error(get(args).await),
         "help" => help(),
         _ => {
             eprintln!("error: no such subcommand: `{}`", args[1]);
@@ -100,7 +100,7 @@ async fn list(args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn get(args: Vec<String>) -> Result<()> {
+async fn get(args: Vec<String>) -> Result<()> {
     let matches = parse_args_with_provider(args)?;
 
     if matches.free.is_empty() {
@@ -109,7 +109,7 @@ fn get(args: Vec<String>) -> Result<()> {
     let name = &matches.free[0].to_string();
 
     let provider = get_provider(matches)?;
-    let color_scheme = provider.get(name)?;
+    let color_scheme = provider.get(name).await?;
     print!("{}", color_scheme.to_yaml());
 
     Ok(())
