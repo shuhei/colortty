@@ -1,3 +1,4 @@
+use crate::color::ColorScheme;
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
 
@@ -36,21 +37,39 @@ impl Provider {
     }
 
     /// Fetches the raw content of the color scheme for the given name.
-    pub fn get(&self, name: &str) -> Result<String> {
+    pub fn get(&self, name: &str) -> Result<ColorScheme> {
         let url = format!(
             "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
             self.user_name, self.repo_name, self.list_path, name, self.extension
         );
-        http_get(&url)
+        let body = http_get(&url)?;
+
+        // TODO: Think about better abstraction.
+        if self.extension == ".itermcolors" {
+            ColorScheme::from_iterm(&body)
+        } else {
+            ColorScheme::from_gogh(&body)
+        }
     }
 
-    /// Fetches the raw content for the color scheme list.
-    pub fn list(&self) -> Result<String> {
+    /// Returns names of all color schemes in the provider.
+    pub fn list(&self) -> Result<Vec<String>> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.user_name, self.repo_name, self.list_path
         );
-        http_get(&url)
+        let body = http_get(&url)?;
+
+        let items = json::parse(&body).context(ErrorKind::ParseJson)?;
+        let names = items
+            .members()
+            .filter_map(|item| item["name"].as_str())
+            // Ignoring files starting with `_` for Gogh.
+            .filter(|filename| !filename.starts_with('_') && filename.ends_with(&self.extension))
+            .map(|filename| filename.replace(&self.extension, "").to_string())
+            .collect();
+
+        Ok(names)
     }
 }
 

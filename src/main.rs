@@ -80,41 +80,17 @@ fn convert(args: Vec<String>) -> Result<()> {
 }
 
 fn list(args: Vec<String>) -> Result<()> {
-    let mut opts = Options::new();
-    opts.optopt(
-        "p",
-        "provider",
-        "color scheme provider: 'iterm'|'gogh'",
-        "PROVIDER",
-    );
-    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
-    let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    match provider.as_ref() {
-        "iterm" => list_iterm(),
-        "gogh" => list_gogh(),
-        _ => Err(ErrorKind::UnknownProvider(provider).into()),
-    }
-}
+    let matches = parse_args_with_provider(args)?;
 
-fn list_iterm() -> Result<()> {
-    let buffer = Provider::iterm().list()?;
-    let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
-    for item in items.members() {
-        let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
+    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
+    let provider = match provider_name.as_ref() {
+        "iterm" => Provider::iterm(),
+        "gogh" => Provider::gogh(),
+        _ => return Err(ErrorKind::UnknownProvider(provider_name).into()),
+    };
+
+    for name in provider.list()? {
         println!("{}", name);
-    }
-    Ok(())
-}
-
-fn list_gogh() -> Result<()> {
-    let buffer = Provider::gogh().list()?;
-    let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
-    for item in items.members() {
-        let filename = item["name"].as_str().unwrap();
-        if !filename.starts_with('_') && filename.ends_with(".sh") {
-            let name = filename.replace(".sh", "");
-            println!("{}", name);
-        }
     }
     Ok(())
 }
@@ -128,20 +104,17 @@ fn get(args: Vec<String>) -> Result<()> {
     let name = &matches.free[0];
 
     let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    let color_scheme = match provider_name.as_ref() {
-        "iterm" => {
-            let body = Provider::iterm().get(name)?;
-            ColorScheme::from_iterm(&body)
-        }
-        "gogh" => {
-            let body = Provider::gogh().get(name)?;
-            ColorScheme::from_gogh(&body)
-        }
+    let provider = match provider_name.as_ref() {
+        "iterm" => Provider::iterm(),
+        "gogh" => Provider::gogh(),
         _ => {
             return Err(ErrorKind::UnknownProvider(provider_name).into());
         }
     };
-    color_scheme.map(|scheme| print!("{}", scheme.to_yaml()))
+
+    let color_scheme = provider.get(name)?;
+    print!("{}", color_scheme.to_yaml());
+    Ok(())
 }
 
 fn help() -> Result<()> {
