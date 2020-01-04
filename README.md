@@ -21,9 +21,11 @@ USAGE:
     # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty list
     colortty list -p iterm
+    colortty list -u # update cached color schemes
 
     # List color schemes at https://github.com/Mayccoll/Gogh
     colortty list -p gogh
+    colortty list -p gogh -u # update cached color schemes
 
     # Get color scheme from https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty get <color scheme name>

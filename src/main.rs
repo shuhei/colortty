@@ -78,10 +78,18 @@ fn convert(args: Vec<String>) -> Result<()> {
 }
 
 async fn list(args: Vec<String>) -> Result<()> {
-    let matches = parse_args_with_provider(args)?;
+    let mut opts = Options::new();
+    set_provider_option(&mut opts);
+    opts.optflag("u", "update-cache", "update color scheme cache");
 
+    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
     let provider = get_provider(matches)?;
-    let color_schemes = provider.list().await?;
+
+    if matches.opt_present("u") {
+        provider.download_all().await?;
+    }
+
+    let color_schemes = provider.list(updateCache).await?;
 
     let mut max_name_length = 0;
     for (name, _) in &color_schemes {
@@ -101,7 +109,9 @@ async fn list(args: Vec<String>) -> Result<()> {
 }
 
 async fn get(args: Vec<String>) -> Result<()> {
-    let matches = parse_args_with_provider(args)?;
+    let mut opts = Options::new();
+    set_provider_option(&mut opts);
+    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
         return Err(ErrorKind::MissingName.into());
@@ -153,16 +163,13 @@ USAGE:
 
 // -- Utility functions
 
-fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {
-    let mut opts = Options::new();
+fn set_provider_option(opts: &mut getopts::Options) {
     opts.optopt(
         "p",
         "provider",
         "color scheme provider: 'iterm'|'gogh'",
         "PROVIDER",
     );
-    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
-    Ok(matches)
 }
 
 fn get_provider(matches: getopts::Matches) -> Result<Provider> {

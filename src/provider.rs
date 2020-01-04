@@ -51,7 +51,7 @@ impl Provider {
     /// Returns all color schemes in the provider.
     ///
     /// This function caches color schemes in the file system.
-    pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
+    pub async fn list(self) -> Result<Vec<(String, ColorScheme)>> {
         match self.read_color_schemes().await {
             Ok(color_schemes) => {
                 if color_schemes.len() > 0 {
@@ -62,33 +62,12 @@ impl Provider {
         }
 
         // If there are no cached files, download them.
-        self.prepare_cache().await?;
+        self.download_all().await?;
         self.read_color_schemes().await
     }
 
-    /// Read color schemes from the cache directory.
-    async fn read_color_schemes(&self) -> Result<Vec<(String, ColorScheme)>> {
-        let mut entries = fs::read_dir(self.repo_dir()?)
-            .await
-            .context(ErrorKind::ReadDir)?;
-
-        // Collect futures and run them in parallel.
-        let mut futures = Vec::new();
-        while let Some(entry) = entries.next().await {
-            let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
-            let filename = dir_entry.file_name().into_string().unwrap();
-
-            let name = filename.replace(&self.extension, "").to_string();
-            futures.push(self.read_color_scheme(name));
-        }
-
-        let color_schemes = future::try_join_all(futures).await?;
-
-        Ok(color_schemes)
-    }
-
-    /// Caches the repository in the file system if the cache doesn't exist.
-    async fn prepare_cache(&self) -> Result<()> {
+    /// Download color scheme files into the cache directory.
+    pub async fn download_all(&self) -> Result<()> {
         let repo_dir = self.repo_dir()?;
 
         eprintln!(
@@ -136,6 +115,27 @@ impl Provider {
         }
 
         Ok(())
+    }
+
+    /// Read color schemes from the cache directory.
+    async fn read_color_schemes(&self) -> Result<Vec<(String, ColorScheme)>> {
+        let mut entries = fs::read_dir(self.repo_dir()?)
+            .await
+            .context(ErrorKind::ReadDir)?;
+
+        // Collect futures and run them in parallel.
+        let mut futures = Vec::new();
+        while let Some(entry) = entries.next().await {
+            let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
+            let filename = dir_entry.file_name().into_string().unwrap();
+
+            let name = filename.replace(&self.extension, "").to_string();
+            futures.push(self.read_color_scheme(name));
+        }
+
+        let color_schemes = future::try_join_all(futures).await?;
+
+        Ok(color_schemes)
     }
 
     /// Reads a color scheme from the repository cache.
