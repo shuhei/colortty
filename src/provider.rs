@@ -1,9 +1,9 @@
 use crate::color::ColorScheme;
 use crate::error::{ErrorKind, Result};
+use async_std::{fs, prelude::*};
 use dirs;
 use failure::ResultExt;
 use git2::Repository;
-use std::fs;
 use std::path::Path;
 
 /// A GitHub repository that provides color schemes.
@@ -51,7 +51,7 @@ impl Provider {
     }
 
     /// Returns all color schemes in the provider.
-    pub fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
+    pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
         // The parent directory to clone the repository cache into.
         let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
         parent_dir.push("colortty");
@@ -63,7 +63,9 @@ impl Provider {
         let schemes_dir = repo_dir.join(&self.list_path);
 
         // Create the parent directory if it doesn't exist.
-        fs::create_dir_all(&parent_dir).context(ErrorKind::CreateDirAll)?;
+        fs::create_dir_all(&parent_dir)
+            .await
+            .context(ErrorKind::CreateDirAll)?;
 
         if !Path::new(&repo_dir).exists() {
             // TODO: The entire repository occupies ~100MB. Consider fetching only necessary files with HTTP.
@@ -75,8 +77,10 @@ impl Provider {
 
         let mut color_schemes: Vec<(String, ColorScheme)> = Vec::new();
 
-        let entries = fs::read_dir(&schemes_dir).context(ErrorKind::ReadDir)?;
-        for entry in entries {
+        let mut entries = fs::read_dir(&schemes_dir)
+            .await
+            .context(ErrorKind::ReadDir)?;
+        while let Some(entry) = entries.next().await {
             let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
             let filename = dir_entry.file_name().into_string().unwrap();
 
@@ -86,7 +90,10 @@ impl Provider {
             }
 
             let name = filename.replace(&self.extension, "").to_string();
-            let body = fs::read_to_string(dir_entry.path()).context(ErrorKind::ReadFile)?;
+            // TODO: Parallelize file reads.
+            let body = fs::read_to_string(dir_entry.path())
+                .await
+                .context(ErrorKind::ReadFile)?;
             let color_scheme = self.parse_color_scheme(&body)?;
             color_schemes.push((name, color_scheme));
         }

@@ -11,28 +11,31 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
-fn main() -> Result<()> {
+#[async_std::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         return help();
     }
 
-    let result = match args[1].as_ref() {
-        "convert" => convert(args),
-        "list" => list(args),
-        "get" => get(args),
+    match args[1].as_ref() {
+        "convert" => handle_error(convert(args)),
+        "list" => handle_error(list(args).await),
+        "get" => handle_error(get(args)),
         "help" => help(),
         _ => {
             eprintln!("error: no such subcommand: `{}`", args[1]);
             process::exit(1);
         }
     };
+}
+
+fn handle_error(result: Result<()>) {
     if let Err(e) = result {
         eprintln!("error: {}", e);
         process::exit(1);
     }
-    Ok(())
 }
 
 // -- commands
@@ -79,18 +82,18 @@ fn convert(args: Vec<String>) -> Result<()> {
     scheme_result.map(|schema| println!("{}", schema.to_yaml()))
 }
 
-fn list(args: Vec<String>) -> Result<()> {
+async fn list(args: Vec<String>) -> Result<()> {
     let matches = parse_args_with_provider(args)?;
 
     let provider = get_provider(matches)?;
-    let color_schemes = provider.list()?;
+    let color_schemes = provider.list().await?;
 
     let mut max_name_length = 0;
-    for (name, _) in color_schemes {
+    for (name, _) in &color_schemes {
         max_name_length = max_name_length.max(name.len());
     }
 
-    for (name, color_scheme) in provider.list()? {
+    for (name, color_scheme) in &color_schemes {
         println!(
             "{:width$} {}",
             name,
@@ -117,7 +120,7 @@ fn get(args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn help() -> Result<()> {
+fn help() {
     println!(
         "colortty - color scheme converter for alacritty
 
@@ -151,8 +154,6 @@ USAGE:
     cat some-color-theme | colortty convert -i mintty -
     cat some-color-theme | colortty convert -i gogh -"
     );
-
-    Ok(())
 }
 
 // -- Utility functions
