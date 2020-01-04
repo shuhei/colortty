@@ -1,6 +1,9 @@
 use crate::color::ColorScheme;
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
+use git2::Repository;
+use std::fs;
+use std::path::Path;
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -54,20 +57,40 @@ impl Provider {
 
     /// Returns names of all color schemes in the provider.
     pub fn list(&self) -> Result<Vec<String>> {
-        let url = format!(
-            "https://api.github.com/repos/{}/{}/contents/{}",
-            self.user_name, self.repo_name, self.list_path
+        let url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
+        // TODO: Get an absolute path of the home directory.
+        let parent_dir = format!(
+            // "~/.cache/colortty/repositories/{}/{}",
+            "/Users/shuhei/.cache/colortty/repositories/{}",
+            self.user_name
         );
-        let body = http_get(&url)?;
+        let repo_dir = format!("{}/{}", parent_dir, self.repo_name);
 
-        let items = json::parse(&body).context(ErrorKind::ParseJson)?;
-        let names = items
-            .members()
-            .filter_map(|item| item["name"].as_str())
+        // Create the parent directory if it doesn't exist.
+        fs::create_dir_all(&parent_dir).context(ErrorKind::CreateDirAll)?;
+
+        if Path::new(&repo_dir).exists() {
+            // TODO: Checkout if the local clone exists.
+        } else {
+            // Clone the repository.
+            Repository::clone(&url, &repo_dir).context(ErrorKind::GitClone)?;
+        }
+
+        let mut names: Vec<String> = Vec::new();
+
+        let schemes_dir = format!("{}/{}", repo_dir, self.list_path);
+        let entries = fs::read_dir(&schemes_dir).context(ErrorKind::ReadDir)?;
+        for entry in entries {
+            let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
+            let filename = dir_entry.file_name().into_string().unwrap();
+
             // Ignoring files starting with `_` for Gogh.
-            .filter(|filename| !filename.starts_with('_') && filename.ends_with(&self.extension))
-            .map(|filename| filename.replace(&self.extension, "").to_string())
-            .collect();
+            if filename.starts_with('_') || !filename.ends_with(&self.extension) {
+                continue;
+            }
+
+            names.push(filename.replace(&self.extension, "").to_string());
+        }
 
         Ok(names)
     }

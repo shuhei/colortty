@@ -30,6 +30,29 @@ pub enum ErrorKind {
     #[fail(display = "failed to parse arguments")]
     InvalidArgument,
 
+    // -- Git errors
+    #[fail(display = "failed to clone a repository")]
+    GitClone,
+
+    #[fail(display = "failed to check out a repository")]
+    GitCheckout,
+
+    #[fail(display = "failed to revparse")]
+    GitRevparse,
+
+    #[fail(display = "failed to get a tree in a repository")]
+    GitGetTree,
+
+    // -- File system errors
+    #[fail(display = "failed to read directory")]
+    ReadDir,
+
+    #[fail(display = "failed to read directory entry")]
+    ReadDirEntry,
+
+    #[fail(display = "failed to recursively create a directory")]
+    CreateDirAll,
+
     // -- Mintty errors
     #[fail(display = "invalid color representation: {}", _0)]
     InvalidColorFormat(String),
