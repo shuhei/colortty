@@ -52,8 +52,22 @@ impl Provider {
     ///
     /// This function caches color schemes in the file system.
     pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
-        self.prepare_cache().await?;
+        match self.read_color_schemes().await {
+            Ok(color_schemes) => {
+                if color_schemes.len() > 0 {
+                    return Ok(color_schemes);
+                }
+            }
+            _ => {}
+        }
 
+        // If there are no cached files, download them.
+        self.prepare_cache().await?;
+        self.read_color_schemes().await
+    }
+
+    /// Read color schemes from the cache directory.
+    async fn read_color_schemes(&self) -> Result<Vec<(String, ColorScheme)>> {
         let mut entries = fs::read_dir(self.repo_dir()?)
             .await
             .context(ErrorKind::ReadDir)?;
@@ -76,10 +90,6 @@ impl Provider {
     /// Caches the repository in the file system if the cache doesn't exist.
     async fn prepare_cache(&self) -> Result<()> {
         let repo_dir = self.repo_dir()?;
-
-        if repo_dir.exists() {
-            return Ok(());
-        }
 
         eprintln!(
             "Downloading color schemes into {}",
