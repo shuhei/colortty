@@ -4,7 +4,7 @@ use async_std::{fs, prelude::*};
 use dirs;
 use failure::ResultExt;
 use git2::Repository;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -52,32 +52,10 @@ impl Provider {
 
     /// Returns all color schemes in the provider.
     pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
-        // The parent directory to clone the repository cache into.
-        let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
-        parent_dir.push("colortty");
-        parent_dir.push("repositories");
-        parent_dir.push(&self.user_name);
-        // The repository cache directory.
-        let repo_dir = parent_dir.join(&self.repo_name);
-        // The directory of all color schemes in the repository.
-        let schemes_dir = repo_dir.join(&self.list_path);
-
-        // Create the parent directory if it doesn't exist.
-        fs::create_dir_all(&parent_dir)
-            .await
-            .context(ErrorKind::CreateDirAll)?;
-
-        if !Path::new(&repo_dir).exists() {
-            // TODO: The entire repository occupies ~100MB. Consider fetching only necessary files with HTTP.
-            // Clone the repository.
-            let repo_url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
-            println!("Cloning {}", repo_url);
-            Repository::clone(&repo_url, &repo_dir).context(ErrorKind::GitClone)?;
-        }
+        self.prepare_cache().await?;
 
         let mut color_schemes: Vec<(String, ColorScheme)> = Vec::new();
-
-        let mut entries = fs::read_dir(&schemes_dir)
+        let mut entries = fs::read_dir(self.schemes_dir()?)
             .await
             .context(ErrorKind::ReadDir)?;
         while let Some(entry) = entries.next().await {
@@ -99,6 +77,44 @@ impl Provider {
         }
 
         Ok(color_schemes)
+    }
+
+    /// Caches the repository in the file system if the cache doesn't exist.
+    async fn prepare_cache(&self) -> Result<()> {
+        // Create the parent directory if it doesn't exist.
+        fs::create_dir_all(self.parent_dir()?)
+            .await
+            .context(ErrorKind::CreateDirAll)?;
+
+        let repo_dir = self.repo_dir()?;
+        if !Path::new(&repo_dir).exists() {
+            // TODO: The entire repository occupies ~100MB. Consider fetching only necessary files with HTTP.
+            // Clone the repository.
+            let repo_url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
+            println!("Cloning {}", repo_url);
+            Repository::clone(&repo_url, &repo_dir).context(ErrorKind::GitClone)?;
+        }
+
+        Ok(())
+    }
+
+    /// The parent directory to clone the repository cache into.
+    fn parent_dir(&self) -> Result<PathBuf> {
+        let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
+        parent_dir.push("colortty");
+        parent_dir.push("repositories");
+        parent_dir.push(&self.user_name);
+        Ok(parent_dir)
+    }
+
+    /// The repository cache directory.
+    fn repo_dir(&self) -> Result<PathBuf> {
+        Ok(self.parent_dir()?.join(&self.repo_name))
+    }
+
+    /// The directory of all color schemes in the repository.
+    fn schemes_dir(&self) -> Result<PathBuf> {
+        Ok(self.repo_dir()?.join(&self.list_path))
     }
 
     fn parse_color_scheme(&self, body: &str) -> Result<ColorScheme> {
