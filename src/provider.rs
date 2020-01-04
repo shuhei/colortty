@@ -3,6 +3,7 @@ use crate::error::{ErrorKind, Result};
 use async_std::{fs, prelude::*};
 use dirs;
 use failure::ResultExt;
+use futures::future;
 use git2::Repository;
 use std::path::{Path, PathBuf};
 
@@ -50,14 +51,29 @@ impl Provider {
         self.parse_color_scheme(&body)
     }
 
+    async fn get_fs(&self, name: String) -> Result<(String, ColorScheme)> {
+        let mut file_path = self.schemes_dir()?;
+        file_path.push(&name);
+        file_path.set_extension(&self.extension[1..]);
+
+        let body = fs::read_to_string(file_path)
+            .await
+            .context(ErrorKind::ReadFile)?;
+        let color_scheme = self.parse_color_scheme(&body)?;
+
+        Ok((name, color_scheme))
+    }
+
     /// Returns all color schemes in the provider.
     pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
         self.prepare_cache().await?;
 
-        let mut color_schemes: Vec<(String, ColorScheme)> = Vec::new();
         let mut entries = fs::read_dir(self.schemes_dir()?)
             .await
             .context(ErrorKind::ReadDir)?;
+
+        // Collect futures and run them in parallel.
+        let mut futures = Vec::new();
         while let Some(entry) = entries.next().await {
             let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
             let filename = dir_entry.file_name().into_string().unwrap();
@@ -68,13 +84,10 @@ impl Provider {
             }
 
             let name = filename.replace(&self.extension, "").to_string();
-            // TODO: Parallelize file reads.
-            let body = fs::read_to_string(dir_entry.path())
-                .await
-                .context(ErrorKind::ReadFile)?;
-            let color_scheme = self.parse_color_scheme(&body)?;
-            color_schemes.push((name, color_scheme));
+            futures.push(self.get_fs(name));
         }
+
+        let color_schemes = future::try_join_all(futures).await?;
 
         Ok(color_schemes)
     }
