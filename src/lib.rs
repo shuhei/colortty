@@ -1,8 +1,3 @@
-extern crate failure;
-extern crate regex;
-extern crate reqwest;
-extern crate xml;
-
 pub mod color;
 pub mod error;
 pub mod provider;

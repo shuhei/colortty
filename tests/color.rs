@@ -1,5 +1,3 @@
-extern crate colortty;
-
 #[cfg(test)]
 mod color_tests {
     mod color {

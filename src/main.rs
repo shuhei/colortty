@@ -1,8 +1,3 @@
-extern crate colortty;
-extern crate failure;
-extern crate getopts;
-extern crate json;
-
 use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Provider, Result};
 use failure::ResultExt;
 use getopts::Options;
