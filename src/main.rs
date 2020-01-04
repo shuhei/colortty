@@ -1,10 +1,4 @@
-extern crate colortty;
-extern crate failure;
-extern crate getopts;
-extern crate json;
-extern crate reqwest;
-
-use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Result};
+use colortty::{ColorScheme, ColorSchemeFormat, ErrorKind, Provider, Result};
 use failure::ResultExt;
 use getopts::Options;
 use std::env;
@@ -12,28 +6,31 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
-fn main() -> Result<()> {
+#[async_std::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         return help();
     }
 
-    let result = match args[1].as_ref() {
-        "convert" => convert(args),
-        "list" => list(args),
-        "get" => get(args),
+    match args[1].as_ref() {
+        "convert" => handle_error(convert(args)),
+        "list" => handle_error(list(args).await),
+        "get" => handle_error(get(args).await),
         "help" => help(),
         _ => {
             eprintln!("error: no such subcommand: `{}`", args[1]);
             process::exit(1);
         }
     };
+}
+
+fn handle_error(result: Result<()>) {
     if let Err(e) = result {
         eprintln!("error: {}", e);
         process::exit(1);
     }
-    Ok(())
 }
 
 // -- commands
@@ -80,80 +77,55 @@ fn convert(args: Vec<String>) -> Result<()> {
     scheme_result.map(|schema| println!("{}", schema.to_yaml()))
 }
 
-fn list(args: Vec<String>) -> Result<()> {
+async fn list(args: Vec<String>) -> Result<()> {
     let mut opts = Options::new();
-    opts.optopt(
-        "p",
-        "provider",
-        "color scheme provider: 'iterm'|'gogh'",
-        "PROVIDER",
-    );
+    set_provider_option(&mut opts);
+    opts.optflag("u", "update-cache", "update color scheme cache");
+
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
-    let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    match provider.as_ref() {
-        "iterm" => list_iterm(),
-        "gogh" => list_gogh(),
-        _ => Err(ErrorKind::UnknownProvider(provider).into()),
-    }
-}
+    let provider = get_provider(&matches)?;
 
-fn list_iterm() -> Result<()> {
-    let schemes_url =
-        "https://api.github.com/repos/mbadolato/iTerm2-Color-Schemes/contents/schemes";
-    let buffer = http_get(schemes_url)?;
-    let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
-    for item in items.members() {
-        let name = item["name"].as_str().unwrap().replace(".itermcolors", "");
-        println!("{}", name);
+    if matches.opt_present("u") {
+        provider.download_all().await?;
     }
+
+    let color_schemes = provider.list().await?;
+
+    let mut max_name_length = 0;
+    for (name, _) in &color_schemes {
+        max_name_length = max_name_length.max(name.len());
+    }
+
+    for (name, color_scheme) in &color_schemes {
+        println!(
+            "{:width$} {}",
+            name,
+            color_scheme.to_preview(),
+            width = max_name_length
+        );
+    }
+
     Ok(())
 }
 
-fn list_gogh() -> Result<()> {
-    let themes_url = "https://api.github.com/repos/Mayccoll/Gogh/contents/themes";
-    let buffer = http_get(themes_url)?;
-    let items = json::parse(&buffer).context(ErrorKind::ParseJson)?;
-    for item in items.members() {
-        let filename = item["name"].as_str().unwrap();
-        if !filename.starts_with('_') && filename.ends_with(".sh") {
-            let name = filename.replace(".sh", "");
-            println!("{}", name);
-        }
-    }
-    Ok(())
-}
-
-fn get(args: Vec<String>) -> Result<()> {
-    let matches = parse_args_with_provider(args)?;
+async fn get(args: Vec<String>) -> Result<()> {
+    let mut opts = Options::new();
+    set_provider_option(&mut opts);
+    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
 
     if matches.free.is_empty() {
         return Err(ErrorKind::MissingName.into());
     }
-    let name = &matches.free[0];
+    let name = &matches.free[0].to_string();
 
-    let provider = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    let color_scheme = match provider.as_ref() {
-        "iterm" => {
-            let url = format!("https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/{}.itermcolors", name);
-            let body = http_get(&url)?;
-            ColorScheme::from_iterm(&body)
-        }
-        "gogh" => {
-            let url = format!(
-                "https://raw.githubusercontent.com/Mayccoll/Gogh/master/themes/{}.sh",
-                name
-            );
-            let body = http_get(&url)?;
-            ColorScheme::from_gogh(&body)
-        }
-        _ => {
-            return Err(ErrorKind::UnknownProvider(provider).into());
-        }
-    };
-    color_scheme.map(|scheme| print!("{}", scheme.to_yaml()))
+    let provider = get_provider(&matches)?;
+    let color_scheme = provider.get(name).await?;
+    print!("{}", color_scheme.to_yaml());
+
+    Ok(())
 }
 
-fn help() -> Result<()> {
+fn help() {
     println!(
         "colortty - color scheme converter for alacritty
 
@@ -161,9 +133,11 @@ USAGE:
     # List color schemes at https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty list
     colortty list -p iterm
+    colortty list -u # update cached color schemes
 
     # List color schemes at https://github.com/Mayccoll/Gogh
     colortty list -p gogh
+    colortty list -p gogh -u # update cached color schemes
 
     # Get color scheme from https://github.com/mbadolato/iTerm2-Color-Schemes
     colortty get <color scheme name>
@@ -187,37 +161,25 @@ USAGE:
     cat some-color-theme | colortty convert -i mintty -
     cat some-color-theme | colortty convert -i gogh -"
     );
-
-    Ok(())
 }
 
 // -- Utility functions
 
-fn http_get(url: &str) -> Result<String> {
-    // TODO: Use .json() with Deserialize?
-    let client = reqwest::Client::new();
-    let mut res = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "colortty")
-        .send()
-        .context(ErrorKind::HttpGet)?;
-
-    if !res.status().is_success() {
-        return Err(ErrorKind::HttpGet.into());
-    }
-
-    let body = res.text().context(ErrorKind::HttpGet)?;
-    Ok(body)
-}
-
-fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {
-    let mut opts = Options::new();
+fn set_provider_option(opts: &mut getopts::Options) {
     opts.optopt(
         "p",
         "provider",
         "color scheme provider: 'iterm'|'gogh'",
         "PROVIDER",
     );
-    let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
-    Ok(matches)
+}
+
+fn get_provider(matches: &getopts::Matches) -> Result<Provider> {
+    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
+    let provider = match provider_name.as_ref() {
+        "iterm" => Provider::iterm(),
+        "gogh" => Provider::gogh(),
+        _ => return Err(ErrorKind::UnknownProvider(provider_name).into()),
+    };
+    Ok(provider)
 }

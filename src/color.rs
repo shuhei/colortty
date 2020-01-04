@@ -61,6 +61,14 @@ impl Color {
     pub fn to_hex(&self) -> String {
         format!("0x{:>02x}{:>02x}{:>02x}", self.red, self.green, self.blue)
     }
+
+    pub fn to_24bit_be(&self) -> String {
+        format!("\x1b[48;2;{};{};{}m", self.red, self.green, self.blue)
+    }
+
+    pub fn to_24bit_preview(&self) -> String {
+        format!("\x1b[38;2;{};{};{}m●", self.red, self.green, self.blue)
+    }
 }
 
 fn parse_int(s: &str) -> Result<u8> {
@@ -104,6 +112,7 @@ pub struct ColorScheme {
 }
 
 impl ColorScheme {
+    // From a mintty color theme (.minttyrc)
     pub fn from_minttyrc(content: &str) -> Result<Self> {
         let mut scheme = ColorScheme::default();
         for line in content.lines() {
@@ -138,6 +147,7 @@ impl ColorScheme {
         Ok(scheme)
     }
 
+    // From an iTerm 2 color theme (.itermcolors)
     pub fn from_iterm(content: &str) -> Result<Self> {
         let mut scheme = ColorScheme::default();
 
@@ -201,6 +211,7 @@ impl ColorScheme {
         Ok(scheme)
     }
 
+    // From a gogh color theme file (.sh)
     pub fn from_gogh(content: &str) -> Result<Self> {
         // Match against export XXX="yyy"
         let pattern = Regex::new(r#"export ([A-Z0-9_]+)="(#[0-9a-fA-F]{6})""#).unwrap();
@@ -235,6 +246,7 @@ impl ColorScheme {
         Ok(scheme)
     }
 
+    // Output YAML that can be used as a color theme in .alacritty.yml
     pub fn to_yaml(&self) -> String {
         format!(
             "colors:
@@ -284,5 +296,35 @@ impl ColorScheme {
             self.bright_cyan.to_hex(),
             self.bright_white.to_hex(),
         )
+    }
+
+    // Show all colors in one line
+    pub fn to_preview(&self) -> String {
+        let colors = vec![
+            self.background.to_24bit_be(),
+            " ".to_string(),
+            self.foreground.to_24bit_preview(),
+            "  ".to_string(),
+            self.black.to_24bit_preview(),
+            self.red.to_24bit_preview(),
+            self.green.to_24bit_preview(),
+            self.yellow.to_24bit_preview(),
+            self.blue.to_24bit_preview(),
+            self.magenta.to_24bit_preview(),
+            self.cyan.to_24bit_preview(),
+            self.white.to_24bit_preview(),
+            "  ".to_string(),
+            self.bright_black.to_24bit_preview(),
+            self.bright_red.to_24bit_preview(),
+            self.bright_green.to_24bit_preview(),
+            self.bright_yellow.to_24bit_preview(),
+            self.bright_blue.to_24bit_preview(),
+            self.bright_magenta.to_24bit_preview(),
+            self.bright_cyan.to_24bit_preview(),
+            self.bright_white.to_24bit_preview(),
+            " ".to_string(),
+            "\x1b[0m".to_string(),
+        ];
+        colors.join("")
     }
 }

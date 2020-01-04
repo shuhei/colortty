@@ -30,6 +30,25 @@ pub enum ErrorKind {
     #[fail(display = "failed to parse arguments")]
     InvalidArgument,
 
+    // -- File system errors
+    #[fail(display = "failed to read directory")]
+    ReadDir,
+
+    #[fail(display = "failed to read directory entry")]
+    ReadDirEntry,
+
+    #[fail(display = "failed to recursively create a directory")]
+    CreateDirAll,
+
+    #[fail(display = "failed to read a file")]
+    ReadFile,
+
+    #[fail(display = "failed to write a file")]
+    WriteFile,
+
+    #[fail(display = "there is no cache directory")]
+    NoCacheDir,
+
     // -- Mintty errors
     #[fail(display = "invalid color representation: {}", _0)]
     InvalidColorFormat(String),
