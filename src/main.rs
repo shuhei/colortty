@@ -82,16 +82,11 @@ fn convert(args: Vec<String>) -> Result<()> {
 fn list(args: Vec<String>) -> Result<()> {
     let matches = parse_args_with_provider(args)?;
 
-    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    let provider = match provider_name.as_ref() {
-        "iterm" => Provider::iterm(),
-        "gogh" => Provider::gogh(),
-        _ => return Err(ErrorKind::UnknownProvider(provider_name).into()),
-    };
-
+    let provider = get_provider(matches)?;
     for name in provider.list()? {
         println!("{}", name);
     }
+
     Ok(())
 }
 
@@ -101,19 +96,12 @@ fn get(args: Vec<String>) -> Result<()> {
     if matches.free.is_empty() {
         return Err(ErrorKind::MissingName.into());
     }
-    let name = &matches.free[0];
+    let name = &matches.free[0].to_string();
 
-    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
-    let provider = match provider_name.as_ref() {
-        "iterm" => Provider::iterm(),
-        "gogh" => Provider::gogh(),
-        _ => {
-            return Err(ErrorKind::UnknownProvider(provider_name).into());
-        }
-    };
-
+    let provider = get_provider(matches)?;
     let color_scheme = provider.get(name)?;
     print!("{}", color_scheme.to_yaml());
+
     Ok(())
 }
 
@@ -167,4 +155,14 @@ fn parse_args_with_provider(args: Vec<String>) -> Result<getopts::Matches> {
     );
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
     Ok(matches)
+}
+
+fn get_provider(matches: getopts::Matches) -> Result<Provider> {
+    let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
+    let provider = match provider_name.as_ref() {
+        "iterm" => Provider::iterm(),
+        "gogh" => Provider::gogh(),
+        _ => return Err(ErrorKind::UnknownProvider(provider_name).into()),
+    };
+    Ok(provider)
 }
