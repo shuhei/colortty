@@ -1,5 +1,6 @@
 use crate::color::ColorScheme;
 use crate::error::{ErrorKind, Result};
+use dirs;
 use failure::ResultExt;
 use git2::Repository;
 use std::fs;
@@ -57,14 +58,15 @@ impl Provider {
 
     /// Returns names of all color schemes in the provider.
     pub fn list(&self) -> Result<Vec<String>> {
-        let url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
-        // TODO: Get an absolute path of the home directory.
-        let parent_dir = format!(
-            // "~/.cache/colortty/repositories/{}/{}",
-            "/Users/shuhei/.cache/colortty/repositories/{}",
-            self.user_name
-        );
-        let repo_dir = format!("{}/{}", parent_dir, self.repo_name);
+        // The parent directory to clone the repository cache into.
+        let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
+        parent_dir.push("colortty");
+        parent_dir.push("repositories");
+        parent_dir.push(&self.user_name);
+        // The repository cache directory.
+        let repo_dir = parent_dir.join(&self.repo_name);
+        // The directory of all color schemes in the repository.
+        let schemes_dir = repo_dir.join(&self.list_path);
 
         // Create the parent directory if it doesn't exist.
         fs::create_dir_all(&parent_dir).context(ErrorKind::CreateDirAll)?;
@@ -73,12 +75,13 @@ impl Provider {
             // TODO: Checkout if the local clone exists.
         } else {
             // Clone the repository.
-            Repository::clone(&url, &repo_dir).context(ErrorKind::GitClone)?;
+            let repo_url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
+            println!("Cloning {}", repo_url);
+            Repository::clone(&repo_url, &repo_dir).context(ErrorKind::GitClone)?;
         }
 
         let mut names: Vec<String> = Vec::new();
 
-        let schemes_dir = format!("{}/{}", repo_dir, self.list_path);
         let entries = fs::read_dir(&schemes_dir).context(ErrorKind::ReadDir)?;
         for entry in entries {
             let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;

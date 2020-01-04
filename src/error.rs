@@ -53,6 +53,9 @@ pub enum ErrorKind {
     #[fail(display = "failed to recursively create a directory")]
     CreateDirAll,
 
+    #[fail(display = "there is no cache directory")]
+    NoCacheDir,
+
     // -- Mintty errors
     #[fail(display = "invalid color representation: {}", _0)]
     InvalidColorFormat(String),
