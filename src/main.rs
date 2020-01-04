@@ -83,8 +83,20 @@ fn list(args: Vec<String>) -> Result<()> {
     let matches = parse_args_with_provider(args)?;
 
     let provider = get_provider(matches)?;
-    for name in provider.list()? {
-        println!("{}", name);
+    let color_schemes = provider.list()?;
+
+    let mut max_name_length = 0;
+    for (name, _) in color_schemes {
+        max_name_length = max_name_length.max(name.len());
+    }
+
+    for (name, color_scheme) in provider.list()? {
+        println!(
+            "{:width$} {}",
+            name,
+            color_scheme.to_preview(),
+            width = max_name_length
+        );
     }
 
     Ok(())

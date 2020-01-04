@@ -53,6 +53,9 @@ pub enum ErrorKind {
     #[fail(display = "failed to recursively create a directory")]
     CreateDirAll,
 
+    #[fail(display = "failed to read a file")]
+    ReadFile,
+
     #[fail(display = "there is no cache directory")]
     NoCacheDir,
 

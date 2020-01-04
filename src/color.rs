@@ -62,9 +62,9 @@ impl Color {
         format!("0x{:>02x}{:>02x}{:>02x}", self.red, self.green, self.blue)
     }
 
-    pub fn to_24bit_bg(&self) -> String {
+    pub fn to_24bit_preview(&self) -> String {
         format!(
-            "\x1b[48;2;{};{};{}m  \x1b[0m",
+            "\x1b[38;2;{};{};{}m●\x1b[0m",
             self.red, self.green, self.blue
         )
     }
@@ -300,26 +300,26 @@ impl ColorScheme {
     // Show all colors in one line
     pub fn to_preview(&self) -> String {
         let colors = vec![
-            self.background.to_24bit_bg(),
-            self.foreground.to_24bit_bg(),
+            self.background.to_24bit_preview(),
+            self.foreground.to_24bit_preview(),
             "  ".to_string(),
-            self.black.to_24bit_bg(),
-            self.red.to_24bit_bg(),
-            self.green.to_24bit_bg(),
-            self.yellow.to_24bit_bg(),
-            self.blue.to_24bit_bg(),
-            self.magenta.to_24bit_bg(),
-            self.cyan.to_24bit_bg(),
-            self.white.to_24bit_bg(),
+            self.black.to_24bit_preview(),
+            self.red.to_24bit_preview(),
+            self.green.to_24bit_preview(),
+            self.yellow.to_24bit_preview(),
+            self.blue.to_24bit_preview(),
+            self.magenta.to_24bit_preview(),
+            self.cyan.to_24bit_preview(),
+            self.white.to_24bit_preview(),
             "  ".to_string(),
-            self.bright_black.to_24bit_bg(),
-            self.bright_red.to_24bit_bg(),
-            self.bright_green.to_24bit_bg(),
-            self.bright_yellow.to_24bit_bg(),
-            self.bright_blue.to_24bit_bg(),
-            self.bright_magenta.to_24bit_bg(),
-            self.bright_cyan.to_24bit_bg(),
-            self.bright_white.to_24bit_bg(),
+            self.bright_black.to_24bit_preview(),
+            self.bright_red.to_24bit_preview(),
+            self.bright_green.to_24bit_preview(),
+            self.bright_yellow.to_24bit_preview(),
+            self.bright_blue.to_24bit_preview(),
+            self.bright_magenta.to_24bit_preview(),
+            self.bright_cyan.to_24bit_preview(),
+            self.bright_white.to_24bit_preview(),
         ];
         colors.join("")
     }

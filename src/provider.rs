@@ -47,17 +47,11 @@ impl Provider {
             self.user_name, self.repo_name, self.list_path, name, self.extension
         );
         let body = http_get(&url)?;
-
-        // TODO: Think about better abstraction.
-        if self.extension == ".itermcolors" {
-            ColorScheme::from_iterm(&body)
-        } else {
-            ColorScheme::from_gogh(&body)
-        }
+        self.parse_color_scheme(&body)
     }
 
-    /// Returns names of all color schemes in the provider.
-    pub fn list(&self) -> Result<Vec<String>> {
+    /// Returns all color schemes in the provider.
+    pub fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
         // The parent directory to clone the repository cache into.
         let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
         parent_dir.push("colortty");
@@ -71,16 +65,15 @@ impl Provider {
         // Create the parent directory if it doesn't exist.
         fs::create_dir_all(&parent_dir).context(ErrorKind::CreateDirAll)?;
 
-        if Path::new(&repo_dir).exists() {
-            // TODO: Checkout if the local clone exists.
-        } else {
+        if !Path::new(&repo_dir).exists() {
+            // TODO: The entire repository occupies ~100MB. Consider fetching only necessary files with HTTP.
             // Clone the repository.
             let repo_url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
             println!("Cloning {}", repo_url);
             Repository::clone(&repo_url, &repo_dir).context(ErrorKind::GitClone)?;
         }
 
-        let mut names: Vec<String> = Vec::new();
+        let mut color_schemes: Vec<(String, ColorScheme)> = Vec::new();
 
         let entries = fs::read_dir(&schemes_dir).context(ErrorKind::ReadDir)?;
         for entry in entries {
@@ -92,10 +85,22 @@ impl Provider {
                 continue;
             }
 
-            names.push(filename.replace(&self.extension, "").to_string());
+            let name = filename.replace(&self.extension, "").to_string();
+            let body = fs::read_to_string(dir_entry.path()).context(ErrorKind::ReadFile)?;
+            let color_scheme = self.parse_color_scheme(&body)?;
+            color_schemes.push((name, color_scheme));
         }
 
-        Ok(names)
+        Ok(color_schemes)
+    }
+
+    fn parse_color_scheme(&self, body: &str) -> Result<ColorScheme> {
+        // TODO: Think about better abstraction.
+        if self.extension == ".itermcolors" {
+            ColorScheme::from_iterm(&body)
+        } else {
+            ColorScheme::from_gogh(&body)
+        }
     }
 }
 
