@@ -30,19 +30,6 @@ pub enum ErrorKind {
     #[fail(display = "failed to parse arguments")]
     InvalidArgument,
 
-    // -- Git errors
-    #[fail(display = "failed to clone a repository")]
-    GitClone,
-
-    #[fail(display = "failed to check out a repository")]
-    GitCheckout,
-
-    #[fail(display = "failed to revparse")]
-    GitRevparse,
-
-    #[fail(display = "failed to get a tree in a repository")]
-    GitGetTree,
-
     // -- File system errors
     #[fail(display = "failed to read directory")]
     ReadDir,
