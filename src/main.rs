@@ -83,13 +83,13 @@ async fn list(args: Vec<String>) -> Result<()> {
     opts.optflag("u", "update-cache", "update color scheme cache");
 
     let matches = opts.parse(&args[2..]).context(ErrorKind::InvalidArgument)?;
-    let provider = get_provider(matches)?;
+    let provider = get_provider(&matches)?;
 
     if matches.opt_present("u") {
         provider.download_all().await?;
     }
 
-    let color_schemes = provider.list(updateCache).await?;
+    let color_schemes = provider.list().await?;
 
     let mut max_name_length = 0;
     for (name, _) in &color_schemes {
@@ -118,7 +118,7 @@ async fn get(args: Vec<String>) -> Result<()> {
     }
     let name = &matches.free[0].to_string();
 
-    let provider = get_provider(matches)?;
+    let provider = get_provider(&matches)?;
     let color_scheme = provider.get(name).await?;
     print!("{}", color_scheme.to_yaml());
 
@@ -174,7 +174,7 @@ fn set_provider_option(opts: &mut getopts::Options) {
     );
 }
 
-fn get_provider(matches: getopts::Matches) -> Result<Provider> {
+fn get_provider(matches: &getopts::Matches) -> Result<Provider> {
     let provider_name = matches.opt_str("p").unwrap_or_else(|| "iterm".to_owned());
     let provider = match provider_name.as_ref() {
         "iterm" => Provider::iterm(),
