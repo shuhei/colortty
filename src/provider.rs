@@ -77,6 +77,15 @@ impl Provider {
     async fn prepare_cache(&self) -> Result<()> {
         let repo_dir = self.repo_dir()?;
 
+        if repo_dir.exists() {
+            return Ok(());
+        }
+
+        eprintln!(
+            "Downloading color schemes into {}",
+            repo_dir.to_str().unwrap()
+        );
+
         // Create the cache directory if it doesn't exist.
         fs::create_dir_all(&repo_dir)
             .await
@@ -131,6 +140,7 @@ impl Provider {
         Ok((name, color_scheme))
     }
 
+    // TODO: Pass `Client` instead of `Request`. However, the ownership rule blocks it...
     /// Downloads a color scheme file and save it in the cache directory.
     async fn download_color_scheme<C: HttpClient>(
         &self,
