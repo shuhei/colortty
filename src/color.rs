@@ -62,11 +62,12 @@ impl Color {
         format!("0x{:>02x}{:>02x}{:>02x}", self.red, self.green, self.blue)
     }
 
+    pub fn to_24bit_be(&self) -> String {
+        format!("\x1b[48;2;{};{};{}m", self.red, self.green, self.blue)
+    }
+
     pub fn to_24bit_preview(&self) -> String {
-        format!(
-            "\x1b[38;2;{};{};{}m●\x1b[0m",
-            self.red, self.green, self.blue
-        )
+        format!("\x1b[38;2;{};{};{}m●", self.red, self.green, self.blue)
     }
 }
 
@@ -300,7 +301,8 @@ impl ColorScheme {
     // Show all colors in one line
     pub fn to_preview(&self) -> String {
         let colors = vec![
-            self.background.to_24bit_preview(),
+            self.background.to_24bit_be(),
+            " ".to_string(),
             self.foreground.to_24bit_preview(),
             "  ".to_string(),
             self.black.to_24bit_preview(),
@@ -320,6 +322,8 @@ impl ColorScheme {
             self.bright_magenta.to_24bit_preview(),
             self.bright_cyan.to_24bit_preview(),
             self.bright_white.to_24bit_preview(),
+            " ".to_string(),
+            "\x1b[0m".to_string(),
         ];
         colors.join("")
     }
