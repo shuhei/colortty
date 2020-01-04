@@ -56,6 +56,9 @@ pub enum ErrorKind {
     #[fail(display = "failed to read a file")]
     ReadFile,
 
+    #[fail(display = "failed to write a file")]
+    WriteFile,
+
     #[fail(display = "there is no cache directory")]
     NoCacheDir,
 

@@ -4,9 +4,8 @@ use async_std::{fs, prelude::*};
 use dirs;
 use failure::ResultExt;
 use futures::future;
-use git2::Repository;
-use std::path::{Path, PathBuf};
-use surf;
+use std::path::PathBuf;
+use surf::{middleware::HttpClient, Request};
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -44,11 +43,8 @@ impl Provider {
 
     /// Fetches the raw content of the color scheme for the given name.
     pub async fn get(&self, name: &str) -> Result<ColorScheme> {
-        let url = format!(
-            "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
-            self.user_name, self.repo_name, self.list_path, name, self.extension
-        );
-        let body = http_get(&url).await?;
+        let req = surf::get(&self.individual_url(name));
+        let body = http_get(req).await?;
         self.parse_color_scheme(&body)
     }
 
@@ -58,7 +54,7 @@ impl Provider {
     pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
         self.prepare_cache().await?;
 
-        let mut entries = fs::read_dir(self.schemes_dir()?)
+        let mut entries = fs::read_dir(self.repo_dir()?)
             .await
             .context(ErrorKind::ReadDir)?;
 
@@ -67,11 +63,6 @@ impl Provider {
         while let Some(entry) = entries.next().await {
             let dir_entry = entry.context(ErrorKind::ReadDirEntry)?;
             let filename = dir_entry.file_name().into_string().unwrap();
-
-            // Ignoring files starting with `_` for Gogh.
-            if filename.starts_with('_') || !filename.ends_with(&self.extension) {
-                continue;
-            }
 
             let name = filename.replace(&self.extension, "").to_string();
             futures.push(self.read_color_scheme(name));
@@ -84,18 +75,45 @@ impl Provider {
 
     /// Caches the repository in the file system if the cache doesn't exist.
     async fn prepare_cache(&self) -> Result<()> {
-        // Create the parent directory if it doesn't exist.
-        fs::create_dir_all(self.parent_dir()?)
+        let repo_dir = self.repo_dir()?;
+
+        // Create the cache directory if it doesn't exist.
+        fs::create_dir_all(&repo_dir)
             .await
             .context(ErrorKind::CreateDirAll)?;
 
-        let repo_dir = self.repo_dir()?;
-        if !Path::new(&repo_dir).exists() {
-            // TODO: The entire repository occupies ~100MB. Consider fetching only necessary files with HTTP.
-            // Clone the repository.
-            let repo_url = format!("https://github.com/{}/{}", self.user_name, self.repo_name);
-            println!("Cloning {}", repo_url);
-            Repository::clone(&repo_url, &repo_dir).context(ErrorKind::GitClone)?;
+        let list_req = surf::get(&self.list_url());
+        let list_body = http_get(list_req).await?;
+        let items = json::parse(&list_body).context(ErrorKind::ParseJson)?;
+
+        // Download and save color scheme files.
+        let mut futures = Vec::new();
+        let client = surf::Client::new();
+        for item in items.members() {
+            let filename = item["name"].as_str().unwrap();
+
+            // Ignoring files starting with `_` for Gogh.
+            if filename.starts_with('_') || !filename.ends_with(&self.extension) {
+                continue;
+            }
+
+            let name = filename.replace(&self.extension, "");
+            let req = client.get(&self.individual_url(&name));
+            futures.push(self.download_color_scheme(req, name));
+
+            // Download files in batches.
+            //
+            // If this requests all files in parallel, the HTTP client (isahc) throws the
+            // following error:
+            //
+            //   HTTP request error: ConnectFailed: failed to connect to the server
+            //
+            // isahc doesn't limit the number of connections per client by default, but
+            // it exposes an API to limit it. However, surf doesn't expose the API.
+            if futures.len() > 10 {
+                future::try_join_all(futures).await?;
+                futures = Vec::new();
+            }
         }
 
         Ok(())
@@ -103,9 +121,7 @@ impl Provider {
 
     /// Reads a color scheme from the repository cache.
     async fn read_color_scheme(&self, name: String) -> Result<(String, ColorScheme)> {
-        let mut file_path = self.schemes_dir()?;
-        file_path.push(&name);
-        file_path.set_extension(&self.extension[1..]);
+        let file_path = self.individual_path(&name)?;
 
         let body = fs::read_to_string(file_path)
             .await
@@ -115,25 +131,54 @@ impl Provider {
         Ok((name, color_scheme))
     }
 
-    /// The parent directory to clone the repository cache into.
-    fn parent_dir(&self) -> Result<PathBuf> {
-        let mut parent_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
-        parent_dir.push("colortty");
-        parent_dir.push("repositories");
-        parent_dir.push(&self.user_name);
-        Ok(parent_dir)
+    /// Downloads a color scheme file and save it in the cache directory.
+    async fn download_color_scheme<C: HttpClient>(
+        &self,
+        req: Request<C>,
+        name: String,
+    ) -> Result<()> {
+        let body = http_get(req).await?;
+        fs::write(self.individual_path(&name)?, body)
+            .await
+            .context(ErrorKind::WriteFile)?;
+        Ok(())
     }
 
     /// The repository cache directory.
     fn repo_dir(&self) -> Result<PathBuf> {
-        Ok(self.parent_dir()?.join(&self.repo_name))
+        let mut repo_dir = dirs::cache_dir().ok_or(ErrorKind::NoCacheDir)?;
+        repo_dir.push("colortty");
+        repo_dir.push("repositories");
+        repo_dir.push(&self.user_name);
+        repo_dir.push(&self.repo_name);
+        Ok(repo_dir)
     }
 
-    /// The directory of all color schemes in the repository.
-    fn schemes_dir(&self) -> Result<PathBuf> {
-        Ok(self.repo_dir()?.join(&self.list_path))
+    /// Returns the path for the given color scheme name.
+    fn individual_path(&self, name: &str) -> Result<PathBuf> {
+        let mut file_path = self.repo_dir()?;
+        file_path.push(name);
+        file_path.set_extension(&self.extension[1..]);
+        Ok(file_path)
     }
 
+    /// Returns the URL for a color scheme on GitHub.
+    fn individual_url(&self, name: &str) -> String {
+        format!(
+            "https://raw.githubusercontent.com/{}/{}/master/{}/{}{}",
+            self.user_name, self.repo_name, self.list_path, name, self.extension
+        )
+    }
+
+    /// Returns the URL for the color scheme list on GitHub API.
+    fn list_url(&self) -> String {
+        format!(
+            "https://api.github.com/repos/{}/{}/contents/{}",
+            self.user_name, self.repo_name, self.list_path
+        )
+    }
+
+    /// Parses a color scheme data.
     fn parse_color_scheme(&self, body: &str) -> Result<ColorScheme> {
         // TODO: Think about better abstraction.
         if self.extension == ".itermcolors" {
@@ -144,14 +189,20 @@ impl Provider {
     }
 }
 
-/// Returns the body of the given URL.
-async fn http_get(url: &str) -> Result<String> {
-    let mut res = surf::get(url)
+/// Returns the body of the given request.
+///
+/// Fails when the URL responds with non-200 status code. Sends `colortty` as `User-Agent` header
+async fn http_get<C: HttpClient>(req: Request<C>) -> Result<String> {
+    let mut res = req
         .set_header("User-Agent", "colortty")
         .await
-        .map_err(|_| ErrorKind::HttpGet)?;
+        .map_err(|e| {
+            println!("HTTP request error: {}", e);
+            ErrorKind::HttpGet
+        })?;
 
     if !res.status().is_success() {
+        println!("HTTP status code: {}", res.status());
         return Err(ErrorKind::HttpGet.into());
     }
 
