@@ -51,20 +51,9 @@ impl Provider {
         self.parse_color_scheme(&body)
     }
 
-    async fn get_fs(&self, name: String) -> Result<(String, ColorScheme)> {
-        let mut file_path = self.schemes_dir()?;
-        file_path.push(&name);
-        file_path.set_extension(&self.extension[1..]);
-
-        let body = fs::read_to_string(file_path)
-            .await
-            .context(ErrorKind::ReadFile)?;
-        let color_scheme = self.parse_color_scheme(&body)?;
-
-        Ok((name, color_scheme))
-    }
-
     /// Returns all color schemes in the provider.
+    ///
+    /// This function caches color schemes in the file system.
     pub async fn list(&self) -> Result<Vec<(String, ColorScheme)>> {
         self.prepare_cache().await?;
 
@@ -84,7 +73,7 @@ impl Provider {
             }
 
             let name = filename.replace(&self.extension, "").to_string();
-            futures.push(self.get_fs(name));
+            futures.push(self.read_color_scheme(name));
         }
 
         let color_schemes = future::try_join_all(futures).await?;
@@ -109,6 +98,20 @@ impl Provider {
         }
 
         Ok(())
+    }
+
+    /// Reads a color scheme from the repository cache.
+    async fn read_color_scheme(&self, name: String) -> Result<(String, ColorScheme)> {
+        let mut file_path = self.schemes_dir()?;
+        file_path.push(&name);
+        file_path.set_extension(&self.extension[1..]);
+
+        let body = fs::read_to_string(file_path)
+            .await
+            .context(ErrorKind::ReadFile)?;
+        let color_scheme = self.parse_color_scheme(&body)?;
+
+        Ok((name, color_scheme))
     }
 
     /// The parent directory to clone the repository cache into.
