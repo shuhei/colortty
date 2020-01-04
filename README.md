@@ -6,6 +6,8 @@ colortty is a utility to generate color schemes for [alacritty](https://github.c
 - [mintty](https://github.com/mintty/mintty) -> alacritty
 - [Gogh](https://github.com/Mayccoll/Gogh) -> alacritty
 
+![screenshot of colortty list](img/list.png)
+
 ## Installation
 
 ```sh
