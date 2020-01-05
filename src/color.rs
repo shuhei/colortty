@@ -91,6 +91,8 @@ fn extract_text(element: &Element) -> Result<&str> {
 pub struct ColorScheme {
     foreground: Color,
     background: Color,
+    cursor_text: Option<Color>,
+    cursor: Option<Color>,
 
     black: Color,
     red: Color,
@@ -204,6 +206,8 @@ impl ColorScheme {
                 "Ansi 15 Color" => scheme.bright_white = color,
                 "Background Color" => scheme.background = color,
                 "Foreground Color" => scheme.foreground = color,
+                "Cursor Color" => scheme.cursor = Some(color),
+                "Cursor Text Color" => scheme.cursor_text = Some(color),
                 _ => (),
             }
         }
@@ -248,13 +252,27 @@ impl ColorScheme {
 
     // Output YAML that can be used as a color theme in .alacritty.yml
     pub fn to_yaml(&self) -> String {
+        let cursor_colors = match (&self.cursor_text, &self.cursor) {
+            (Some(cursor_text), Some(cursor)) => format!(
+                "
+  # Cursor colors
+  cursor:
+    text:   '{}'
+    cursor: '{}'
+",
+                cursor_text.to_hex(),
+                cursor.to_hex()
+            ),
+            _ => String::new(),
+        };
+
         format!(
             "colors:
   # Default colors
   primary:
     background: '{}'
     foreground: '{}'
-
+{}
   # Normal colors
   normal:
     black:   '{}'
@@ -279,6 +297,7 @@ impl ColorScheme {
 ",
             self.background.to_hex(),
             self.foreground.to_hex(),
+            cursor_colors,
             self.black.to_hex(),
             self.red.to_hex(),
             self.green.to_hex(),

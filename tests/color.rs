@@ -98,6 +98,11 @@ mod color_tests {
     background: '0x1e1f28'
     foreground: '0xf8f8f2'
 
+  # Cursor colors
+  cursor:
+    text:   '0xffffff'
+    cursor: '0xbbbbbb'
+
   # Normal colors
   normal:
     black:   '0x000000'
