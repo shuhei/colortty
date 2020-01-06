@@ -120,7 +120,7 @@ async fn get(args: Vec<String>) -> Result<()> {
 
     let provider = get_provider(&matches)?;
     let color_scheme = provider.get(name).await?;
-    print!("{}", color_scheme.to_yaml());
+    print!("# {}\n{}", name, color_scheme.to_yaml());
 
     Ok(())
 }
