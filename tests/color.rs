@@ -131,6 +131,47 @@ mod color_tests {
         }
 
         #[test]
+        fn convert_iterm_complicated() {
+            let firewatch_iterm = read_fixture("tests/fixtures/two-firewatch-light.itermcolors");
+            let scheme = ColorScheme::from_iterm(&firewatch_iterm).unwrap();
+            let firewatch_alacritty: String = "colors:
+  # Default colors
+  primary:
+    background: '0xf8f6f2'
+    foreground: '0x75541b'
+
+  # Cursor colors
+  cursor:
+    text:   '0xd5deff'
+    cursor: '0xda4181'
+
+  # Normal colors
+  normal:
+    black:   '0x383a42'
+    red:     '0xe45649'
+    green:   '0x50a14f'
+    yellow:  '0xc18401'
+    blue:    '0x0184bc'
+    magenta: '0xa626a4'
+    cyan:    '0x0997b3'
+    white:   '0xfafafa'
+
+  # Bright colors
+  bright:
+    black:   '0x4f525e'
+    red:     '0xe06c75'
+    green:   '0x98c379'
+    yellow:  '0xe5c07b'
+    blue:    '0x61afef'
+    magenta: '0xc678dd'
+    cyan:    '0x56b6c2'
+    white:   '0xffffff'
+"
+            .to_string();
+            assert_eq!(scheme.to_yaml(), firewatch_alacritty);
+        }
+
+        #[test]
         fn convert_gogh() {
             let dracula_gogh = read_fixture("tests/fixtures/dracula.sh");
             let dracula_alacritty: String = "colors:

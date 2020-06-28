@@ -87,6 +87,14 @@ fn extract_text(element: &Element) -> Result<&str> {
     }
 }
 
+fn extract_real_color(element: &Element) -> Result<u8> {
+    let real_value = extract_text(element)?
+        .parse::<f32>()
+        .context(ErrorKind::ParseFloat)?;
+    let int_value = (real_value * 255.0) as u8;
+    Ok(int_value)
+}
+
 #[derive(Default)]
 pub struct ColorScheme {
     foreground: Color,
@@ -163,28 +171,37 @@ impl ColorScheme {
         let values = root_dict.get_children("dict", None);
         for (key, value) in keys.zip(values) {
             let color_name = extract_text(key)?;
-            let color_keys = value.get_children("key", None);
-            let color_values = value.get_children("real", None);
 
             let mut color = Color::default();
-            for (color_key, color_value) in color_keys.zip(color_values) {
-                let component_name = extract_text(color_key)?;
-                let real_value: f32 = extract_text(color_value)?
-                    .parse::<f32>()
-                    .context(ErrorKind::ParseFloat)?;
-                let int_value = (real_value * 255.0) as u8;
-                match component_name {
-                    "Red Component" => color.red = int_value,
-                    "Green Component" => color.green = int_value,
-                    "Blue Component" => color.blue = int_value,
-                    "Alpha Component" => {}
-                    "Color Space" => {}
-                    _ => {
-                        return Err(
-                            ErrorKind::UnknownColorComponent(component_name.to_owned()).into()
-                        );
-                    }
-                };
+            // Extract element pairs like <key/><real/><key/><real/><key/><real/>
+            // `element.get_children()` doesn't work well here because there might be
+            //  a pattern like <key/><real/><key/><string/><key/><real/>.
+            //  In this case, we want to ignore the second pair (<key/><string/>).
+            let element_nodes = value
+                .children
+                .iter()
+                .flat_map(|child| match child {
+                    Xml::ElementNode(elem) => Some(elem),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for pair in element_nodes.chunks(2) {
+                if let [color_key, color_value] = pair {
+                    let component_name = extract_text(color_key)?;
+                    match component_name {
+                        "Red Component" => color.red = extract_real_color(color_value)?,
+                        "Green Component" => color.green = extract_real_color(color_value)?,
+                        "Blue Component" => color.blue = extract_real_color(color_value)?,
+                        "Alpha Component" => {}
+                        "Color Space" => {}
+                        _ => {
+                            return Err(ErrorKind::UnknownColorComponent(
+                                component_name.to_owned(),
+                            )
+                            .into());
+                        }
+                    };
+                }
             }
 
             match color_name {
