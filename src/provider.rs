@@ -26,9 +26,9 @@ impl Provider {
         )
     }
 
-    /// Returns a provider for `Mayccoll/Gogh`.
+    /// Returns a provider for `Gogh-Co/Gogh`.
     pub fn gogh() -> Self {
-        Provider::new("Mayccoll", "Gogh", "themes", ".sh")
+        Provider::new("Gogh-Co", "Gogh", "themes", ".sh")
     }
 
     /// Returns a provider instance.
