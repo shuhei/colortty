@@ -5,7 +5,7 @@ use dirs;
 use failure::ResultExt;
 use futures::future;
 use std::path::PathBuf;
-use surf::{middleware::HttpClient, Request};
+use surf::RequestBuilder;
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -86,7 +86,6 @@ impl Provider {
 
         // Download and save color scheme files.
         let mut futures = Vec::new();
-        let client = surf::Client::new();
         for item in items.members() {
             let filename = item["name"].as_str().unwrap();
 
@@ -96,7 +95,7 @@ impl Provider {
             }
 
             let name = filename.replace(&self.extension, "");
-            let req = client.get(&self.individual_url(&name));
+            let req = surf::get(&self.individual_url(&name));
             futures.push(self.download_color_scheme(req, name));
 
             // Download files in batches.
@@ -150,13 +149,8 @@ impl Provider {
         Ok((name, color_scheme))
     }
 
-    // TODO: Pass `Client` instead of `Request`. However, the ownership rule blocks it...
     /// Downloads a color scheme file and save it in the cache directory.
-    async fn download_color_scheme<C: HttpClient>(
-        &self,
-        req: Request<C>,
-        name: String,
-    ) -> Result<()> {
+    async fn download_color_scheme(&self, req: RequestBuilder, name: String) -> Result<()> {
         let body = http_get(req).await?;
         fs::write(self.individual_path(&name)?, body)
             .await
@@ -212,14 +206,11 @@ impl Provider {
 /// Returns the body of the given request.
 ///
 /// Fails when the URL responds with non-200 status code. Sends `colortty` as `User-Agent` header
-async fn http_get<C: HttpClient>(req: Request<C>) -> Result<String> {
-    let mut res = req
-        .set_header("User-Agent", "colortty")
-        .await
-        .map_err(|e| {
-            println!("HTTP request error: {}", e);
-            ErrorKind::HttpGet
-        })?;
+async fn http_get(req: RequestBuilder) -> Result<String> {
+    let mut res = req.header("User-Agent", "colortty").await.map_err(|e| {
+        println!("HTTP request error: {}", e);
+        ErrorKind::HttpGet
+    })?;
 
     if !res.status().is_success() {
         println!("HTTP status code: {}", res.status());
