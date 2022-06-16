@@ -2,7 +2,6 @@ use crate::color::ColorScheme;
 use crate::error::{ErrorKind, Result};
 use async_std::{fs, prelude::*};
 use dirs;
-use failure::ResultExt;
 use futures::future;
 use std::path::PathBuf;
 use surf::RequestBuilder;

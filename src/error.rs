@@ -1,127 +1,95 @@
-use failure::{Backtrace, Context, Fail};
-use std::convert::From;
-use std::fmt::{self, Display};
 use std::result;
+use thiserror::Error;
 use xml::Xml;
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug, Fail, PartialEq)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ErrorKind {
     // -- CLI errors
-    #[fail(display = "failed on HTTP GET")]
+    #[error("failed on HTTP GET")]
     HttpGet,
 
-    #[fail(display = "failed to parse JSON")]
+    #[error("failed to parse JSON")]
     ParseJson,
 
-    #[fail(display = "source is not specified")]
+    #[error("source is not specified")]
     MissingSource,
 
-    #[fail(display = "input format is not specified and failed to guess")]
+    #[error("input format is not specified and failed to guess")]
     MissingInputFormat,
 
-    #[fail(display = "failed to read from stdin")]
+    #[error("failed to read from stdin")]
     ReadStdin,
 
-    #[fail(display = "failed to read source")]
+    #[error("failed to read source")]
     ReadSource,
 
-    #[fail(display = "failed to parse arguments")]
+    #[error("failed to parse arguments")]
     InvalidArgument,
 
     // -- File system errors
-    #[fail(display = "failed to read directory")]
+    #[error("failed to read directory")]
     ReadDir,
 
-    #[fail(display = "failed to read directory entry")]
+    #[error("failed to read directory entry")]
     ReadDirEntry,
 
-    #[fail(display = "failed to recursively create a directory")]
+    #[error("failed to recursively create a directory")]
     CreateDirAll,
 
-    #[fail(display = "failed to read a file")]
+    #[error("failed to read a file")]
     ReadFile,
 
-    #[fail(display = "failed to write a file")]
+    #[error("failed to write a file")]
     WriteFile,
 
-    #[fail(display = "there is no cache directory")]
+    #[error("there is no cache directory")]
     NoCacheDir,
 
     // -- Mintty errors
-    #[fail(display = "invalid color representation: {}", _0)]
+    #[error("invalid color representation: {0}")]
     InvalidColorFormat(String),
 
-    #[fail(display = "invalid line: {}", _0)]
+    #[error("invalid line: {0}")]
     InvalidLineFormat(String),
 
-    #[fail(display = "unknown color name: {}", _0)]
+    #[error("unknown color name: {0}")]
     UnknownColorName(String),
 
-    #[fail(display = "failed to parse int")]
+    #[error("failed to parse int")]
     ParseInt,
 
     // -- iTerm errors
-    #[fail(display = "invalid XML")]
+    #[error("invalid XML")]
     XMLParse,
 
-    #[fail(display = "root dict was not found")]
+    #[error("root dict was not found")]
     NoRootDict,
 
-    #[fail(display = "cannot extract text from: {}", _0)]
+    #[error("cannot extract text from: {0}")]
     NotCharacterNode(Box<Xml>),
 
-    #[fail(display = "unknown color component: {}", _0)]
+    #[error("unknown color component: {0}")]
     UnknownColorComponent(String),
 
-    #[fail(display = "failed to parse float")]
+    #[error("failed to parse float")]
     ParseFloat,
 
     // -- Provider errors
-    #[fail(display = "unknown color scheme provider: {}", _0)]
+    #[error("unknown color scheme provider: {0}")]
     UnknownProvider(String),
 
-    #[fail(display = "missing color scheme name")]
+    #[error("missing color scheme name")]
     MissingName,
 }
 
-#[derive(Debug)]
-pub struct Error {
-    inner: Context<ErrorKind>,
+pub struct WithKind<K> {
+    pub kind: K,
+    pub source: anyhow::Error,
 }
 
-impl Error {
-    pub fn kind(&self) -> &ErrorKind {
-        &*self.inner.get_context()
-    }
-}
-
-impl Fail for Error {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(&self.inner, f)
-    }
-}
-
-impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Error {
-        let inner = Context::new(kind);
-        Error { inner }
-    }
-}
-
-impl From<Context<ErrorKind>> for Error {
-    fn from(inner: Context<ErrorKind>) -> Error {
-        Error { inner }
-    }
+pub trait Kind {
+    type Ok;
+    fn kind<K>(self, kind: K) -> std::result::Result<Self::Ok, WithKind<K>>;
 }
