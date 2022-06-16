@@ -4,7 +4,7 @@ colortty is a utility to generate color schemes for [alacritty](https://github.c
 
 - iTerm 2 -> alacritty
 - [mintty](https://github.com/mintty/mintty) -> alacritty
-- [Gogh](https://github.com/Mayccoll/Gogh) -> alacritty
+- [Gogh](https://github.com/Gogh-Co/Gogh) -> alacritty
 
 ![screenshot of colortty list](img/list.png)
 
@@ -25,7 +25,7 @@ USAGE:
     colortty list -p iterm
     colortty list -u # update cached color schemes
 
-    # List color schemes at https://github.com/Mayccoll/Gogh
+    # List color schemes at https://github.com/Gogh-Co/Gogh
     colortty list -p gogh
     colortty list -p gogh -u # update cached color schemes
 
@@ -33,7 +33,7 @@ USAGE:
     colortty get <color scheme name>
     colortty get -p iterm <color scheme name>
 
-    # Get color scheme from https://github.com/Mayccoll/Gogh
+    # Get color scheme from https://github.com/Gogh-Co/Gogh
     colortty get -p gogh <color scheme name>
 
     # Convert with implicit input type
