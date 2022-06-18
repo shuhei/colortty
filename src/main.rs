@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use colortty::{ColorScheme, ColorSchemeFormat, Provider};
 use getopts::Options;
 use std::env;
@@ -33,30 +33,6 @@ fn handle_error(result: Result<()>) {
     }
 }
 
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum CliError {
-    #[error("source is not specified")]
-    MissingSource,
-
-    #[error("input format is not specified and failed to guess")]
-    MissingInputFormat,
-
-    #[error("failed to read from stdin")]
-    ReadStdin,
-
-    #[error("failed to read source")]
-    ReadSource,
-
-    #[error("failed to parse arguments")]
-    InvalidArgument,
-
-    #[error("unknown color scheme provider: {0}")]
-    UnknownProvider(String),
-
-    #[error("missing color scheme name")]
-    MissingName,
-}
-
 // -- commands
 
 fn convert(args: Vec<String>) -> Result<()> {
@@ -67,10 +43,12 @@ fn convert(args: Vec<String>) -> Result<()> {
         "input format: 'iterm'|'mintty'|'gogh'",
         "INPUT_FORMAT",
     );
-    let matches = opts.parse(&args[2..]).context(CliError::InvalidArgument)?;
+    let matches = opts
+        .parse(&args[2..])
+        .context("Failed to parse arguments")?;
 
     if matches.free.is_empty() {
-        return Err(CliError::MissingSource.into());
+        bail!("Source is not specified");
     }
 
     let source = &matches.free[0];
@@ -78,18 +56,20 @@ fn convert(args: Vec<String>) -> Result<()> {
         .opt_str("i")
         .and_then(|s| ColorSchemeFormat::from_string(&s))
         .or_else(|| ColorSchemeFormat::from_filename(&source))
-        .ok_or(CliError::MissingInputFormat)?;
+        .ok_or(anyhow!(
+            "Input format is not specified and failed to guess from the source file name"
+        ))?;
 
     let mut buffer = String::new();
     if source == "-" {
         io::stdin()
             .read_to_string(&mut buffer)
-            .context(CliError::ReadStdin)?;
+            .context("Failed to read stdin")?;
     } else {
         File::open(source)
             .unwrap()
             .read_to_string(&mut buffer)
-            .context(CliError::ReadSource)?;
+            .with_context(|| format!("Failed to read: {}", source))?;
     }
 
     let scheme_result = match input_format {
@@ -106,7 +86,9 @@ async fn list(args: Vec<String>) -> Result<()> {
     set_provider_option(&mut opts);
     opts.optflag("u", "update-cache", "update color scheme cache");
 
-    let matches = opts.parse(&args[2..]).context(CliError::InvalidArgument)?;
+    let matches = opts
+        .parse(&args[2..])
+        .context("Failed to parse arguments")?;
     let provider = get_provider(&matches)?;
 
     if matches.opt_present("u") {
@@ -135,10 +117,12 @@ async fn list(args: Vec<String>) -> Result<()> {
 async fn get(args: Vec<String>) -> Result<()> {
     let mut opts = Options::new();
     set_provider_option(&mut opts);
-    let matches = opts.parse(&args[2..]).context(CliError::InvalidArgument)?;
+    let matches = opts
+        .parse(&args[2..])
+        .context("Failed to parse arguments")?;
 
     if matches.free.is_empty() {
-        return Err(CliError::MissingName.into());
+        bail!("Color scheme name is missing");
     }
     let name = &matches.free[0].to_string();
 
@@ -203,7 +187,7 @@ fn get_provider(matches: &getopts::Matches) -> Result<Provider> {
     let provider = match provider_name.as_ref() {
         "iterm" => Provider::iterm(),
         "gogh" => Provider::gogh(),
-        _ => return Err(CliError::UnknownProvider(provider_name).into()),
+        _ => bail!("Unknown color scheme provider: {}", provider_name),
     };
     Ok(provider)
 }

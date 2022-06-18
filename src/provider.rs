@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use async_std::{fs, prelude::*};
 use dirs;
 use futures::future;
@@ -6,33 +6,6 @@ use std::path::PathBuf;
 use surf::RequestBuilder;
 
 use crate::color::ColorScheme;
-
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum ProviderError {
-    #[error("failed on HTTP GET")]
-    HttpGet,
-
-    #[error("failed to parse JSON")]
-    ParseJson,
-
-    #[error("failed to read directory")]
-    ReadDir,
-
-    #[error("failed to read directory entry")]
-    ReadDirEntry,
-
-    #[error("failed to recursively create a directory")]
-    CreateDirAll,
-
-    #[error("failed to read a file")]
-    ReadFile,
-
-    #[error("failed to write a file")]
-    WriteFile,
-
-    #[error("there is no cache directory")]
-    NoCacheDir,
-}
 
 /// A GitHub repository that provides color schemes.
 pub struct Provider {
@@ -71,7 +44,9 @@ impl Provider {
     /// Fetches the raw content of the color scheme for the given name.
     pub async fn get(&self, name: &str) -> Result<ColorScheme> {
         let req = surf::get(&self.individual_url(name));
-        let body = http_get(req).await?;
+        let body = send_http_request(req)
+            .await
+            .with_context(|| format!("Failed to get color scheme raw content for {}", name))?;
         self.parse_color_scheme(&body)
     }
 
@@ -105,11 +80,13 @@ impl Provider {
         // Create the cache directory if it doesn't exist.
         fs::create_dir_all(&repo_dir)
             .await
-            .context(ProviderError::CreateDirAll)?;
+            .context("Failed to create the cache directory")?;
 
         let list_req = surf::get(&self.list_url());
-        let list_body = http_get(list_req).await?;
-        let items = json::parse(&list_body).context(ProviderError::ParseJson)?;
+        let list_body = send_http_request(list_req)
+            .await
+            .context("Failed to download a color scheme list")?;
+        let items = json::parse(&list_body).context("Failed to parse a color scheme list")?;
 
         // Download and save color scheme files.
         let mut futures = Vec::new();
@@ -147,12 +124,12 @@ impl Provider {
     async fn read_color_schemes(&self) -> Result<Vec<(String, ColorScheme)>> {
         let mut entries = fs::read_dir(self.repo_dir()?)
             .await
-            .context(ProviderError::ReadDir)?;
+            .context("Failed to read the cache directory")?;
 
         // Collect futures and run them in parallel.
         let mut futures = Vec::new();
         while let Some(entry) = entries.next().await {
-            let dir_entry = entry.context(ProviderError::ReadDirEntry)?;
+            let dir_entry = entry.context("Failed to read the cache directory entry")?;
             let filename = dir_entry.file_name().into_string().unwrap();
 
             let name = filename.replace(&self.extension, "").to_string();
@@ -170,7 +147,7 @@ impl Provider {
 
         let body = fs::read_to_string(file_path)
             .await
-            .context(ProviderError::ReadFile)?;
+            .with_context(|| format!("Failed to read the color scheme file for {}", name))?;
         let color_scheme = self.parse_color_scheme(&body)?;
 
         Ok((name, color_scheme))
@@ -178,16 +155,18 @@ impl Provider {
 
     /// Downloads a color scheme file and save it in the cache directory.
     async fn download_color_scheme(&self, req: RequestBuilder, name: String) -> Result<()> {
-        let body = http_get(req).await?;
+        let body = send_http_request(req)
+            .await
+            .with_context(|| format!("Failed to download a color scheme file for {}", name))?;
         fs::write(self.individual_path(&name)?, body)
             .await
-            .context(ProviderError::WriteFile)?;
+            .with_context(|| format!("Failed to write a color scheme file for {}", name))?;
         Ok(())
     }
 
     /// The repository cache directory.
     fn repo_dir(&self) -> Result<PathBuf> {
-        let mut repo_dir = dirs::cache_dir().ok_or(ProviderError::NoCacheDir)?;
+        let mut repo_dir = dirs::cache_dir().ok_or(anyhow!("There is no cache directory"))?;
         repo_dir.push("colortty");
         repo_dir.push("repositories");
         repo_dir.push(&self.user_name);
@@ -230,24 +209,26 @@ impl Provider {
     }
 }
 
-/// Returns the body of the given request.
+/// Sends an HTTP request and returns the body of the given request.
 ///
-/// Fails when the URL responds with non-200 status code. Sends `colortty` as `User-Agent` header
-async fn http_get(req: RequestBuilder) -> Result<String> {
-    let mut res = req.header("User-Agent", "colortty").await.map_err(|e| {
-        println!("HTTP request error: {}", e);
-        ProviderError::HttpGet
-    })?;
+/// Fails when the URL responds with non-200 status code. Also sends
+/// `colortty` as `User-Agent` header.
+async fn send_http_request(req: RequestBuilder) -> Result<String> {
+    let mut res = req
+        .header("User-Agent", "colortty")
+        .await
+        // Surf::Error (http_types::Error) is not a std::error:Error.
+        .map_err(|e| e.into_inner())
+        .context("Failed to send an HTTP request")?;
 
     if !res.status().is_success() {
-        println!("HTTP status code: {}", res.status());
-        return Err(ProviderError::HttpGet.into());
+        bail!("Received non-success status code: {}", res.status());
     }
 
-    // TODO: Propagate information from the original error.
     let body = res
         .body_string()
         .await
-        .map_err(|_| ProviderError::HttpGet)?;
-    Ok(body)
+        .map_err(|e| e.into_inner())
+        .context("Failed to read HTTP response body")?;
+    return Ok(body);
 }
