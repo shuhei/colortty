@@ -1,5 +1,4 @@
-use crate::error::{ErrorKind, Result};
-use failure::ResultExt;
+use anyhow::{Context, Result};
 use regex::Regex;
 use xml::{Element, Xml};
 
@@ -32,6 +31,39 @@ impl ColorSchemeFormat {
     }
 }
 
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum ParseError {
+    // -- Generic errors
+    #[error("failed to parse int")]
+    ParseInt,
+
+    #[error("failed to parse float")]
+    ParseFloat,
+
+    // -- Mintty parse errors
+    #[error("invalid color representation: {0}")]
+    InvalidColorFormat(String),
+
+    #[error("invalid line: {0}")]
+    InvalidLineFormat(String),
+
+    #[error("unknown color name: {0}")]
+    UnknownColorName(String),
+
+    // -- iTerm parse errors
+    #[error("invalid XML")]
+    XMLParse,
+
+    #[error("root dict was not found")]
+    NoRootDict,
+
+    #[error("cannot extract text from: {0}")]
+    NotCharacterNode(Box<Xml>),
+
+    #[error("unknown color component: {0}")]
+    UnknownColorComponent(String),
+}
+
 #[derive(Debug, Default, PartialEq)]
 pub struct Color {
     pub red: u8,
@@ -43,7 +75,7 @@ impl Color {
     pub fn from_mintty_color(s: &str) -> Result<Self> {
         let rgb: Vec<_> = s.split(',').collect();
         if rgb.len() != 3 {
-            return Err(ErrorKind::InvalidColorFormat(s.to_owned()).into());
+            return Err(ParseError::InvalidColorFormat(s.to_owned()).into());
         }
         let red = parse_int(rgb[0])?;
         let green = parse_int(rgb[1])?;
@@ -72,25 +104,25 @@ impl Color {
 }
 
 fn parse_int(s: &str) -> Result<u8> {
-    Ok(s.parse::<u8>().context(ErrorKind::ParseInt)?)
+    Ok(s.parse::<u8>().context(ParseError::ParseInt)?)
 }
 
 fn parse_hex(s: &str) -> Result<u8> {
-    Ok(u8::from_str_radix(s, 16).context(ErrorKind::ParseInt)?)
+    Ok(u8::from_str_radix(s, 16).context(ParseError::ParseInt)?)
 }
 
 fn extract_text(element: &Element) -> Result<&str> {
     let first = &element.children[0];
     match first {
         Xml::CharacterNode(ref text) => Ok(text),
-        _ => Err(ErrorKind::NotCharacterNode(Box::new(first.to_owned())).into()),
+        _ => Err(ParseError::NotCharacterNode(Box::new(first.to_owned())).into()),
     }
 }
 
 fn extract_real_color(element: &Element) -> Result<u8> {
     let real_value = extract_text(element)?
         .parse::<f32>()
-        .context(ErrorKind::ParseFloat)?;
+        .context(ParseError::ParseFloat)?;
     let int_value = (real_value * 255.0) as u8;
     Ok(int_value)
 }
@@ -128,7 +160,7 @@ impl ColorScheme {
         for line in content.lines() {
             let components: Vec<&str> = line.split('=').collect();
             if components.len() != 2 {
-                return Err(ErrorKind::InvalidLineFormat(line.to_owned()).into());
+                return Err(ParseError::InvalidLineFormat(line.to_owned()).into());
             }
             let name = components[0];
             let color = Color::from_mintty_color(components[1])?;
@@ -151,7 +183,7 @@ impl ColorScheme {
                 "BoldMagenta" => scheme.bright_magenta = color,
                 "BoldCyan" => scheme.bright_cyan = color,
                 "BoldWhite" => scheme.bright_white = color,
-                _ => return Err(ErrorKind::UnknownColorName(name.to_owned()).into()),
+                _ => return Err(ParseError::UnknownColorName(name.to_owned()).into()),
             }
         }
         Ok(scheme)
@@ -161,11 +193,11 @@ impl ColorScheme {
     pub fn from_iterm(content: &str) -> Result<Self> {
         let mut scheme = ColorScheme::default();
 
-        let root = content.parse::<Element>().context(ErrorKind::XMLParse)?;
+        let root = content.parse::<Element>().context(ParseError::XMLParse)?;
         let root_dict: &Element = root
             .get_children("dict", None)
             .nth(0)
-            .ok_or(ErrorKind::NoRootDict)?;
+            .ok_or(ParseError::NoRootDict)?;
 
         let keys = root_dict.get_children("key", None);
         let values = root_dict.get_children("dict", None);
@@ -195,7 +227,7 @@ impl ColorScheme {
                         "Alpha Component" => {}
                         "Color Space" => {}
                         _ => {
-                            return Err(ErrorKind::UnknownColorComponent(
+                            return Err(ParseError::UnknownColorComponent(
                                 component_name.to_owned(),
                             )
                             .into());
