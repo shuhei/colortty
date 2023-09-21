@@ -78,7 +78,7 @@ fn convert(args: Vec<String>) -> Result<()> {
         ColorSchemeFormat::Gogh => ColorScheme::from_gogh(&buffer),
     };
 
-    scheme_result.map(|schema| println!("{}", schema.to_yaml()))
+    scheme_result.map(|schema| println!("{}", schema.to_toml()))
 }
 
 async fn list(args: Vec<String>) -> Result<()> {
@@ -128,7 +128,7 @@ async fn get(args: Vec<String>) -> Result<()> {
 
     let provider = get_provider(&matches)?;
     let color_scheme = provider.get(name).await?;
-    print!("# {}\n{}", name, color_scheme.to_yaml());
+    print!("# {}\n{}", name, color_scheme.to_toml());
 
     Ok(())
 }
