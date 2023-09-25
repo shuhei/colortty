@@ -11,22 +11,39 @@ pub enum ColorSchemeFormat {
 impl ColorSchemeFormat {
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
-            "iterm" => Some(ColorSchemeFormat::ITerm),
-            "mintty" => Some(ColorSchemeFormat::Mintty),
-            "gogh" => Some(ColorSchemeFormat::Gogh),
+            "iterm" => Some(Self::ITerm),
+            "mintty" => Some(Self::Mintty),
+            "gogh" => Some(Self::Gogh),
             _ => None,
         }
     }
 
     pub fn from_filename(s: &str) -> Option<Self> {
         if s.ends_with(".itermcolors") {
-            Some(ColorSchemeFormat::ITerm)
+            Some(Self::ITerm)
         } else if s.ends_with(".minttyrc") {
-            Some(ColorSchemeFormat::Mintty)
+            Some(Self::Mintty)
         } else if s.ends_with(".sh") {
-            Some(ColorSchemeFormat::Gogh)
+            Some(Self::Gogh)
         } else {
             None
+        }
+    }
+}
+
+pub enum AlacrittyConfigFormat {
+    // Until 0.12.
+    Yaml,
+    // From 0.13.
+    Toml,
+}
+
+impl AlacrittyConfigFormat {
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "yaml" => Some(Self::Yaml),
+            "toml" => Some(Self::Toml),
+            _ => None,
         }
     }
 }

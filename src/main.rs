@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use colortty::{ColorScheme, ColorSchemeFormat, Provider};
+use colortty::{AlacrittyConfigFormat, ColorScheme, ColorSchemeFormat, Provider};
 use getopts::Options;
 use std::env;
 use std::fs::File;
@@ -43,6 +43,12 @@ fn convert(args: Vec<String>) -> Result<()> {
         "input format: 'iterm'|'mintty'|'gogh'",
         "INPUT_FORMAT",
     );
+    opts.optopt(
+        "o",
+        "output-format",
+        "output format: 'yaml'|'toml'",
+        "OUTPUT_FORMAT",
+    );
     let matches = opts
         .parse(&args[2..])
         .context("Failed to parse arguments")?;
@@ -59,6 +65,10 @@ fn convert(args: Vec<String>) -> Result<()> {
         .ok_or(anyhow!(
             "Input format is not specified and failed to guess from the source file name"
         ))?;
+    let output_format = matches
+        .opt_str("o")
+        .and_then(|s| AlacrittyConfigFormat::from_string(&s))
+        .unwrap_or(AlacrittyConfigFormat::Yaml);
 
     let mut buffer = String::new();
     if source == "-" {
@@ -72,13 +82,19 @@ fn convert(args: Vec<String>) -> Result<()> {
             .with_context(|| format!("Failed to read: {}", source))?;
     }
 
-    let scheme_result = match input_format {
+    let scheme = match input_format {
         ColorSchemeFormat::ITerm => ColorScheme::from_iterm(&buffer),
         ColorSchemeFormat::Mintty => ColorScheme::from_minttyrc(&buffer),
         ColorSchemeFormat::Gogh => ColorScheme::from_gogh(&buffer),
+    }?;
+    let output = match output_format {
+        AlacrittyConfigFormat::Yaml => scheme.to_yaml(),
+        // TODO: Output in toml.
+        AlacrittyConfigFormat::Toml => scheme.to_yaml(),
     };
+    println!("{}", output);
 
-    scheme_result.map(|schema| println!("{}", schema.to_yaml()))
+    Ok(())
 }
 
 async fn list(args: Vec<String>) -> Result<()> {
