@@ -315,7 +315,51 @@ impl ColorScheme {
         }
         Ok(scheme)
     }
+    // Output YAML that can be used as a color theme in .alacritty.yml
+pub fn to_yaml(&self) -> String {
+    let cursor_colors = match (&self.cursor_text, &self.cursor) {
+        (Some(cursor_text), Some(cursor)) => format!(
+            "
+# Cursor colors
+cursor:
+text:   '{}'
+cursor: '{}'
+",
+            cursor_text.to_hex(),
+            cursor.to_hex()
+        ),
+        _ => String::new(),
+    };
 
+    format!(
+        "colors:
+# Default colors
+primary:
+background: '{}'
+foreground: '{}'
+{}
+# Normal colors
+normal:
+black:   '{}'
+red:     '{}'
+green:   '{}'
+yellow:  '{}'
+blue:    '{}'
+magenta: '{}'
+cyan:    '{}'
+white:   '{}'
+
+# Bright colors
+bright:
+black:   '{}'
+red:     '{}'
+green:   '{}'
+yellow:  '{}'
+blue:    '{}'
+magenta: '{}'
+cyan:    '{}'
+white:   '{}'
+",
     // Output TOML that can be used as a color theme in .alacritty.toml
     pub fn to_toml(&self) -> String {
         let cursor_colors = match (&self.cursor_text, &self.cursor) {
